@@ -1,0 +1,18 @@
+User-agent: *
+Allow: /
+Allow: /order
+Disallow: /api/
+Disallow: /cashier
+Disallow: /kitchen
+Disallow: /dashboard
+Disallow: /inventory
+Disallow: /employees
+Disallow: /shifts
+Disallow: /assets
+Disallow: /finance
+Disallow: /posts
+Disallow: /settings
+Disallow: /waiter
+Disallow: /feedback
+
+Sitemap: https://siapnyafe.widifirmaan.web.id/sitemap.xml
