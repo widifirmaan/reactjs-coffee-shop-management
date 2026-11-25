@@ -1,31 +1,59 @@
 # Siap Nyafe POS
 
-> Siap Nyafe is a full-stack coffee shop point-of-sale, customer self-ordering portal, kitchen display system, and operational management platform. It is built with React 18 and a serverless Cloudflare Workers backend powered by Cloudflare D1 (SQLite) and R2 object storage, with a bold Neo-Brutalist interface.
+> Coffee shop point-of-sale, customer self-ordering portal, kitchen display system, and store management application built with React 18, Vite 5, and SQLite.
 
-[![React](https://img.shields.io/badge/React-18.2.0-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-5.0.0-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev/)
-[![React Router](https://img.shields.io/badge/React_Router-6.18-CA4245?style=flat-square&logo=reactrouter&logoColor=white)](https://reactrouter.com/)
-[![Axios](https://img.shields.io/badge/Axios-1.6.0-5A29E4?style=flat-square&logo=axios&logoColor=white)](https://axios-http.com/)
-[![Swiper](https://img.shields.io/badge/Swiper-12.0.3-6332F6?style=flat-square&logo=swiper&logoColor=white)](https://swiperjs.com/)
+[![React](https://img.shields.io/badge/React-18.3.1-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-5.4.21-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![React Router](https://img.shields.io/badge/React_Router-6.30-CA4245?style=flat-square&logo=reactrouter&logoColor=white)](https://reactrouter.com/)
+[![Axios](https://img.shields.io/badge/Axios-1.18-5A29E4?style=flat-square&logo=axios&logoColor=white)](https://axios-http.com/)
+[![Swiper](https://img.shields.io/badge/Swiper-12.2-6332F6?style=flat-square&logo=swiper&logoColor=white)](https://swiperjs.com/)
 [![Lucide](https://img.shields.io/badge/Lucide_React-0.292.0-F56565?style=flat-square)](https://lucide.dev/)
-[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-F38020?style=flat-square&logo=cloudflareworkers&logoColor=white)](https://workers.cloudflare.com/)
-[![Cloudflare D1](https://img.shields.io/badge/Cloudflare_D1-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/d1/)
-[![Cloudflare R2](https://img.shields.io/badge/Cloudflare_R2-F38020?style=flat-square&logo=cloudflare&logoColor=white)](https://developers.cloudflare.com/r2/)
+[![SQLite](https://img.shields.io/badge/SQLite-libSQL-003B57?style=flat-square&logo=sqlite&logoColor=white)](https://sqlite.org/)
+[![bcryptjs](https://img.shields.io/badge/Auth-bcryptjs_%2B_JWT-111111?style=flat-square)](#tech-stack)
 
 ---
 
 ## Live URL
 
-- **URL:** [https://siapnyafe.widifirmaan.web.id](https://siapnyafe.widifirmaan.web.id)
-- **Backend Architecture:** Serverless Edge Worker (`worker.js`), Cloudflare D1 Database (`siapnyafe`), and Cloudflare R2 (`siapnyafe-images`)
+- **Production:** [https://siapnyafe.widifirmaan.web.id](https://siapnyafe.widifirmaan.web.id)
 
----
+## Features
+
+- **Public Brand Showcase (`/`)**: Brand landing page featuring typography marquees, mouse-parallax background lettering, an "About Us" story section, latest published news/promos, and a signature menu grid with item specification modals. Content is configurable from `/settings`.
+- **Customer Self-Ordering Portal (`/order`)**: Unauthenticated digital menu with horizontal category filtering (derived from menu categories excluding `Featured`), item detail and image zoom modals, and a floating cart tray.
+- **Cart & Order Dispatch**: Guest checkout drawer collecting customer name, table number (or `Take Away`), order notes, and payment method, followed by order confirmation, database submission, and a ticket number summary.
+- **Table Waiter Assistance (`/order`, `/waiter`)**: Call Waiter button allowing seated customers to request assistance or the bill. `/waiter` polls for new notifications every 5 seconds with a toggleable alert sound.
+- **Cashier POS Terminal (`/cashier`)**: Order register calculating subtotal, configurable tax (default 10% with an include-tax toggle), manual IDR discount, payment method, quick cash presets (`Exact`, `50,000`, `100,000`, `150,000`, `200,000`), change amount, and a printable receipt modal.
+- **Operations Dashboard (`/dashboard`)**: Displays today's revenue, today's order count, pending order count, and low-stock ingredient count, along with personal shift clock-in/clock-out attendance tracking (with late alerts) and a shared operational memo note.
+- **Kitchen Display System (`/kitchen`)**: Order queue refreshed every 5 seconds with status transitions (`PENDING`, `PREPARING`, `READY_TO_SERVE`, `COMPLETED`), customer notes, toggleable chime, completed history, and ticket item editing.
+- **Menu Management (`/menu`)**: Catalog manager supporting category assignment, pricing, descriptions, gallery images via URL or file upload, and item availability toggles (`available`).
+- **Ingredient, Recipe & Stock Control (`/inventory`)**: Raw ingredient tracker with minimum stock thresholds (`minThreshold` / `minStock`), plus a Recipes tab mapping ingredients to menu items for automatic stock deduction when orders move to `PREPARING` or `COMPLETED`.
+- **Staff Directory (`/employees`)**: Employee directory tracking employee IDs (`EMP-MAN-001`, `EMP-BAR-001`, etc.), roles, base salaries, contact info, password updates, active status toggles, and attendance history.
+- **Weekly Shift Scheduling (`/shifts`)**: Shift matrix across morning, afternoon, and evening slots per day of the week, including a midweek save confirmation prompt and an automated shift balancer.
+- **Equipment & Asset Register (`/assets`)**: Register of cafe equipment recording purchase date, price, condition (`GOOD`, `NEEDS_MAINTENANCE`, `BROKEN`), location, serial number, and maintenance dates.
+- **Financial Ledger (`/finance`)**: Cash flow ledger tracking income and expense entries with category/type filters and a net balance summary.
+- **Customer Feedback (`/feedback`)**: Guest ratings (1 to 5 stars), review messages, average rating summary, and the associated shift staff.
+- **Promotional Posts & Store Settings (`/posts`, `/settings`)**: Blog/announcement publishing (`/posts`) and store settings (`/settings`) covering shop name, page title, favicon, phone number, hero image, badges, marquee text, info section, tax percentage, and receipt footer.
+
+## Tech Stack
+
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend Framework** | React `18.3.1`, Vite `5.4.21` | SPA frontend with Vite HMR and production bundling |
+| **Routing** | React Router DOM `6.30.4` | Client-side routing and role-based protected route guards |
+| **Networking & State** | React Context API, Axios `1.18.1` | Auth state management and HTTP request/401 interceptors |
+| **Styling & Components** | Custom CSS (`index.css`), Swiper `12.2.0` | Neo-brutalist design tokens and scrollable category selector |
+| **Icons** | Lucide React `0.292.0` | Vector UI icons across customer and staff interfaces |
+| **API Runtime** | Web Fetch REST API (`api/[...route].js`) | Request routing for auth, orders, inventory, attendance, and uploads |
+| **Database** | SQLite / libSQL (`@libsql/client` `0.18.0`) | Relational storage for employees, menus, orders, shifts, and assets |
+| **Media Storage** | Local Disk / Object Storage / Inline Fallback | Image upload handling for menu items and store branding |
+| **Security & Auth** | bcryptjs `2.4.3`, JWT (HS256 via Web Crypto) | Password hashing (10 salt rounds) and 7-day Bearer/cookie sessions |
 
 ## Screenshots
 
 ### 1. Customer Brand & Self-Ordering Experience (`/`, `/order`)
 
-| Desktop (MacBook Pro M4) | Mobile (iPhone 16 Pro) |
+| Desktop | Mobile |
 | :---: | :---: |
 | **Public Brand Landing CMS (Hero View)**<br>![Coffee Landing CMS Hero Desktop](screenshots/Coffee%20Landing%20CMS%20Hero%20Desktop.png) | **Public Brand Landing CMS (Hero View)**<br>![Coffee Landing CMS Hero Mobile](screenshots/Coffee%20Landing%20CMS%20Hero%20Mobile.png) |
 | **Brand Story & Split Gate (Info Section)**<br>![Coffee Landing CMS Info Section Desktop](screenshots/Coffee%20Landing%20CMS%20Info%20Section%20Desktop.png) | **Brand Story & Split Gate (Info Section)**<br>![Coffee Landing CMS Info Section Mobile](screenshots/Coffee%20Landing%20CMS%20Info%20Section%20Mobile.png) |
@@ -48,7 +76,7 @@
 
 ### 2. Staff Authentication, Operations Dashboard, POS & Kitchen Workflow (`/login`, `/dashboard`, `/cashier`, `/kitchen`, `/waiter`)
 
-| Desktop (MacBook Pro M4) | Mobile (iPhone 16 Pro) |
+| Desktop | Mobile |
 | :---: | :---: |
 | **Staff & Manager Authentication Portal (`/login`)**<br>![Coffee Staff Login Desktop](screenshots/Coffee%20Staff%20Login%20Desktop.png) | **Staff & Manager Authentication Portal (`/login`)**<br>![Coffee Staff Login Mobile](screenshots/Coffee%20Staff%20Login%20Mobile.png) |
 | **Staff Authentication Failure (401 Auth Error Alert)**<br>![Coffee Staff Login Alert Auth Error Desktop](screenshots/Coffee%20Staff%20Login%20Alert%20Auth%20Error%20Desktop.png) | **Staff Authentication Failure (401 Auth Error Alert)**<br>![Coffee Staff Login Alert Auth Error Mobile](screenshots/Coffee%20Staff%20Login%20Alert%20Auth%20Error%20Mobile.png) |
@@ -73,7 +101,7 @@
 
 ### 3. Staff Administration, Roster & Weekly Shift Scheduling (`/employees`, `/shifts`)
 
-| Desktop (MacBook Pro M4) | Mobile (iPhone 16 Pro) |
+| Desktop | Mobile |
 | :---: | :---: |
 | **Staff Directory & Wage Roster (`/employees`)**<br>![Coffee Staff Roster Management Desktop](screenshots/Coffee%20Staff%20Roster%20Management%20Desktop.png) | **Staff Directory & Wage Roster (`/employees`)**<br>![Coffee Staff Roster Management Mobile](screenshots/Coffee%20Staff%20Roster%20Management%20Mobile.png) |
 | **Staff Recruitment & Role Provisioning (Recruit Modal)**<br>![Coffee Staff Modal Recruit Employee Desktop](screenshots/Coffee%20Staff%20Modal%20Recruit%20Employee%20Desktop.png) | **Staff Recruitment & Role Provisioning (Recruit Modal)**<br>![Coffee Staff Modal Recruit Employee Mobile](screenshots/Coffee%20Staff%20Modal%20Recruit%20Employee%20Mobile.png) |
@@ -92,7 +120,7 @@
 
 ### 4. Supply Chain, Equipment Assets, Finance & Marketing (`/menu`, `/inventory`, `/assets`, `/finance`, `/posts`, `/feedback`, `/settings`)
 
-| Desktop (MacBook Pro M4) | Mobile (iPhone 16 Pro) |
+| Desktop | Mobile |
 | :---: | :---: |
 | **Menu Catalog & Recipe Management (`/menu`)**<br>![Coffee Menu Item Management Desktop](screenshots/Coffee%20Menu%20Item%20Management%20Desktop.png) | **Menu Catalog & Recipe Management (`/menu`)**<br>![Coffee Menu Item Management Mobile](screenshots/Coffee%20Menu%20Item%20Management%20Mobile.png) |
 | **Drink Creation & Price Setup (Add Item Modal)**<br>![Coffee Menu Modal Add Item Desktop](screenshots/Coffee%20Menu%20Modal%20Add%20Item%20Desktop.png) | **Drink Creation & Price Setup (Add Item Modal)**<br>![Coffee Menu Modal Add Item Mobile](screenshots/Coffee%20Menu%20Modal%20Add%20Item%20Mobile.png) |
@@ -130,53 +158,22 @@
 | **Global Store Configuration & Tax Rules (`/settings`)**<br>![Coffee Store Settings Config Desktop](screenshots/Coffee%20Store%20Settings%20Config%20Desktop.png) | **Global Store Configuration & Tax Rules (`/settings`)**<br>![Coffee Store Settings Config Mobile](screenshots/Coffee%20Store%20Settings%20Config%20Mobile.png) |
 | **Store Settings & Tax Rules Saved (Toast Alert)**<br>![Coffee Store Settings Alert Saved Desktop](screenshots/Coffee%20Store%20Settings%20Alert%20Saved%20Desktop.png) | **Store Settings & Tax Rules Saved (Toast Alert)**<br>![Coffee Store Settings Alert Saved Mobile](screenshots/Coffee%20Store%20Settings%20Alert%20Saved%20Mobile.png) |
 
-
 ---
 
-## Fitur
-
-- **Public Brand Showcase & Interactive CMS (`/`)**: High-energy Neo-Brutalist brand landing featuring infinite typography marquees, a mouse-parallax background, a split-gate animated "About Us" brand story reveal, a promotional latest roasts showcase, and a fullscreen signature menu coverflow carousel (Swiper) with item specification modals. All hero, marquee, badge, and info content is editable from `/settings`.
-- **Customer Digital Self-Ordering Portal (`/order`)**: Customer-facing digital menu with category filtering (Featured plus the categories stored in the database, such as Coffee, Non-Coffee, Snack, and Food), item detail and image zoom modals, and a floating cart tray. No login is required.
-- **Cart & Dynamic Order Dispatch Modals**: Guest checkout flow consisting of a cart drawer, a form for customer name, table number (or Take Away), order notes, and payment method, a pre-dispatch order confirmation review, order submission to Cloudflare D1, and an order ticket display.
-- **Table Call Waiter Assistance (`/order`, `/waiter`)**: Call Waiter button that lets seated diners request the bill/payment or general assistance. The waiter dashboard polls for new requests every 5 seconds and can play an alert sound, which can be toggled on or off.
-- **Cashier POS Register Terminal (`/cashier`)**: Order entry register with instant subtotal, configurable tax (default 10%, with an include-tax toggle), a manual IDR discount field, payment method selection, quick cash buttons (Exact, 50,000, 100,000, 150,000, 200,000), change calculation, and a thermal-style receipt modal that prints through the browser.
-- **Executive Operations Dashboard (`/dashboard`)**: Manager overview with today's revenue, today's orders, pending orders, low-stock items, and menu and employee totals, plus a clock-in/clock-out attendance tracker with late-arrival alerts, clocked-in staff status, and a shared operational memo note.
-- **Barista Kitchen Display System (`/kitchen`)**: Order queue refreshed every 5 seconds with a status workflow (`PENDING`, `PREPARING`, `READY_TO_SERVE`, `COMPLETED`), customer notes, a toggleable chime for new orders, completed order history, and ticket editing (add, remove, or change items).
-- **Menu Management (`/menu`)**: Catalog manager with category assignment, pricing, descriptions, a gallery with image URL or Cloudflare R2 uploads, and an item availability switch (`available: true/false`).
-- **Ingredient, Recipe & Stock Control (`/inventory`)**: Raw material tracker for coffee beans, milk, syrups, and packaging with minimum stock thresholds (`minStock`), plus a Recipes tab that binds ingredients to menu items so stock is deducted automatically when an order is placed.
-- **Staff Directory (`/employees`)**: Multi-role employee database tracking employee IDs (`EMP-MAN-001`, `EMP-BAR-001`, etc.), positions, base monthly salaries, contact details, password management, active/inactive status, and attendance history.
-- **Weekly Shift Scheduling (`/shifts`)**: Matrix scheduling for morning, afternoon, and evening shifts across all roles, with a rule that blocks an employee from being assigned twice on the same day and a randomizer that balances shift counts across employees.
-- **Equipment & Asset Register (`/assets`)**: Registry of espresso machines, grinders, and cafe hardware with purchase date, purchase price, condition rating (`GOOD`, `NEEDS_MAINTENANCE`, `BROKEN`), location, serial number, and last and next maintenance dates.
-- **Financial Ledger & Expense Accounting (`/finance`)**: Cash flow ledger of income and expense transactions with category and type filters, and a net profit summary.
-- **Customer Feedback (`/feedback`)**: Guest review collection with star ratings (1 to 5), comments, an average rating summary, and the shift staff associated with each review.
-- **Promotional CMS & Announcements (`/posts`, `/settings`)**: Blog publishing for articles and promotions (`/posts`), and store configuration (`/settings`) covering shop name, website title, favicon, phone number, hero image, badges, marquee text, info section, tax percentage, and receipt footer.
-
----
-
-## Tech Stack
-
-| Category | Technologies | Purpose |
-| :--- | :--- | :--- |
-| **Frontend Framework** | React `18.2.0`, Vite `5.0.0` | SPA frontend foundation with fast Vite HMR and production bundle optimization |
-| **Routing** | React Router DOM `6.18.0` | Client-side routing, URL parameter binding, and role-based protected route wrappers |
-| **State & Networking** | React Context API, Axios `1.6.0` | Centralized authentication state with global HTTP request and session interceptors |
-| **UI & Styling** | Neo-Brutalist Design System | High-contrast CSS variable tokens, bold borders, retro drop-shadows, and layout patterns |
-| **Carousels & Sliders** | Swiper `12.0.3` | Coverflow and touch carousels for the signature menu and category selector |
-| **Iconography** | Lucide React `0.292.0` | Consistent vector line icons across POS registers, menus, and dashboard views |
-| **Serverless Backend** | Cloudflare Workers (`worker.js`) | Edge REST API runtime handling authentication, orders, inventory, and attendance |
-| **Database** | Cloudflare D1 (SQLite) | Serverless relational database holding employees, menus, orders, shifts, and assets |
-| **Object Storage** | Cloudflare R2 | S3-compatible cloud object storage for menu photography and promotional uploads |
-| **Security & Auth** | bcryptjs `2.4.3`, JWT (HS256 via Web Crypto) | Password hashing (10 salt rounds) and stateless 7-day token sessions verified in the Worker |
-| **Tooling & Deploy** | Wrangler `4.147.0`, Workers Static Assets | Worker configuration, D1 schema execution, and deployment of the Worker with the built `dist` assets |
-
----
-
-## Tutorial Run Local & Setup
+## Local Setup
 
 ### Project Structure
 
 ```bash
 /
+├── api/
+│   └── [...route].js               # Serverless catch-all API handler
+├── scripts/
+│   ├── setup-local-db.mjs          # Local SQLite database initializer and seeder
+│   ├── seed.sql                    # SQLite demo seed data (15 staff, 61 menus, 16 posts, etc.)
+│   └── generate-presentation.mjs   # Presentation generator from screenshots
+├── server/
+│   └── db-adapter.mjs              # SQLite/libSQL D1-compatible adapter & local upload store
 ├── src/
 │   ├── components/
 │   │   ├── layout/                 # Navbar, OrderPageHeader, OrderPageFooter
@@ -184,167 +181,160 @@
 │   ├── context/
 │   │   └── AuthContext.jsx         # Global user authentication & role state
 │   ├── pages/
-│   │   ├── OrderPage.jsx           # Customer self-ordering digital menu (/order)
-│   │   ├── DashboardPage.jsx       # Manager operations dashboard (/dashboard)
+│   │   ├── OrderPage.jsx           # Customer self-ordering menu (/order)
+│   │   ├── DashboardPage.jsx       # Operations dashboard (/dashboard)
 │   │   ├── CashierPage.jsx         # POS register checkout (/cashier)
-│   │   ├── KitchenPage.jsx         # Kitchen Display System (KDS) (/kitchen)
-│   │   ├── MenuPage.jsx            # Menu catalog & recipes (/menu)
-│   │   ├── InventoryPage.jsx       # Raw ingredient stock tracking (/inventory)
-│   │   ├── EmployeePage.jsx        # Staff directory & roles (/employees)
-│   │   ├── ShiftPage.jsx           # Weekly shift scheduling (/shifts)
-│   │   ├── WaiterPage.jsx          # Table waiter assistance calls (/waiter)
-│   │   ├── AssetManagementPage.jsx # Coffee machinery register (/assets)
-│   │   ├── FinancePage.jsx         # Financial ledger & expense tracking (/finance)
-│   │   ├── FeedbackPage.jsx        # Customer feedback & reviews (/feedback)
-│   │   ├── CMSPage.jsx             # Public promotional landing (/)
-│   │   ├── PostManagementPage.jsx  # Blog & announcement manager (/posts)
-│   │   ├── SettingsPage.jsx        # Store configuration & tax settings (/settings)
-│   │   └── LoginPage.jsx           # Authentication portal (/login)
-│   ├── utils/                      # Staff utility helpers (staffUtils.js)
-│   ├── App.jsx                     # Route definitions and role-based guards
-│   └── main.jsx                    # React application entry point
-├── screenshots/                    # MacBook Pro M4 & iPhone 16 Pro showcase mockups
-├── public/                         # Static assets
-├── scripts/
-│   ├── seed.sql                    # Demo data for local D1
-│   └── generate-presentation.mjs   # Builds a presentation from the screenshots
+│   │   ├── KitchenPage.jsx         # Kitchen Display System (/kitchen)
+│   │   ├── MenuPage.jsx            # Menu catalog (/menu)
+│   │   ├── InventoryPage.jsx       # Ingredient & recipe stock (/inventory)
+│   │   ├── EmployeePage.jsx        # Staff directory & attendance history (/employees)
+│   │   ├── ShiftPage.jsx           # Weekly shift matrix (/shifts)
+│   │   ├── WaiterPage.jsx          # Table waiter notifications (/waiter)
+│   │   ├── AssetManagementPage.jsx # Equipment register (/assets)
+│   │   ├── FinancePage.jsx         # Cash flow ledger (/finance)
+│   │   ├── FeedbackPage.jsx        # Customer reviews (/feedback)
+│   │   ├── CMSPage.jsx             # Public brand landing (/)
+│   │   ├── PostManagementPage.jsx  # Blog & promo posts (/posts)
+│   │   ├── SettingsPage.jsx        # Store configuration & tax (/settings)
+│   │   └── LoginPage.jsx           # Staff login portal (/login)
+│   ├── utils/
+│   │   └── staffUtils.js           # Shift staff parser helper
+│   ├── App.jsx                     # Route definitions and role guards
+│   └── main.jsx                    # Application entry point
+├── screenshots/                    # Desktop and mobile application screenshots
+├── public/                         # Static image assets
 ├── index.html                      # Vite HTML entry
-├── worker.js                       # Cloudflare Worker REST API implementation
-├── schema.sql                      # Cloudflare D1 SQLite database table definitions
-├── wrangler.jsonc                  # Cloudflare Worker, D1, and R2 binding configuration
-├── vite.config.js                  # Vite build and development proxy configuration
-├── package.json                    # Dependencies, scripts, and engine specifications
+├── schema.sql                      # Relational SQLite database schema (16 tables)
+├── vite.config.js                  # Vite config with in-process local /api middleware
+├── vercel.json                     # SPA rewrite & serverless SQL include config
+├── package.json                    # Dependencies and scripts
 └── README.md
 ```
 
-### Prerequisites
+### 1. Prerequisites
 
-- **Node.js**: Version 18.0.0 or higher
-- **npm** or **yarn**
+- **Node.js**: Version `18.0.0` or higher (`20+` or `22+` recommended)
+- **npm**: Included with Node.js
 
----
+### 2. Environment Variables
 
-### Option 1: Frontend Development (Connected to Production API)
+No environment variables are required for local development. All API routes run locally against `local.db` (auto-initialized from [`schema.sql`](schema.sql) and [`scripts/seed.sql`](scripts/seed.sql)) and store uploaded images in `.local-uploads/`.
 
-The fastest way to run and explore the application locally is pointing the Vite frontend to the live production Cloudflare Worker API:
+If needed, copy [`.env.example`](.env.example) to `.env`:
+
+```env
+JWT_SECRET=local-dev-jwt-secret
+SEED_SECRET=local-dev-seed-secret
+# Optional remote libSQL/Turso database:
+# TURSO_DATABASE_URL=
+# TURSO_AUTH_TOKEN=
+# Optional external API base URL (overrides local /api middleware):
+# VITE_API_URL=
+```
+
+### 3. Installation & Database Setup
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/widifirmaan/reactjs-coffee-shop-management.git
 cd reactjs-coffee-shop-management
 
-# 2. Install project dependencies
+# 2. Install dependencies
 npm install
 
-# 3. Create local environment configuration (.env.local)
-echo "VITE_API_URL=https://siapnyafe.widifirmaan.web.id" > .env.local
-
-# 4. Start local development server
-npm run dev
+# 3. Initialize and seed local.db (optional; also auto-runs on first /api request)
+npm run db:setup
 ```
 
-Open [http://localhost:8085](http://localhost:8085) in your web browser.
+Expected seeded counts from [`scripts/seed.sql`](scripts/seed.sql): `15` employees, `5` categories, `61` menus, `16` posts, `10` ingredients, `10` assets, and `1` `shop_config`.
 
----
-
-### Option 2: Fullstack Local Development (Wrangler + D1 SQLite)
-
-To develop both the frontend and the Cloudflare Worker API locally with an isolated local SQLite D1 database:
+To reset `local.db` back to the clean seeded state:
 
 ```bash
-# 1. Install dependencies
-npm install
-
-# 2. Initialize the local D1 database schema and demo records via Wrangler
-npx wrangler d1 execute siapnyafe --local --file=./schema.sql
-npx wrangler d1 execute siapnyafe --local --file=./scripts/seed.sql
-
-# 3. Start local Cloudflare Worker API
-npx wrangler dev --port 3000
-
-# 4. In a separate terminal, start the Vite development server
-npm run dev
+npm run db:reset
 ```
 
-The frontend will proxy `/api` requests to the local worker on port `3000`.
-
----
-
-### Production Build & Deployment
-
-```bash
-# Compile and optimize production distribution bundle
-npm run build
-
-# Deploy to Cloudflare Workers
-npm run deploy
-```
-
----
-
-### Database Architecture & Schema
-
-Siap Nyafe structures restaurant operations, POS tickets, staff shifts, raw ingredients, and assets across 16 relational tables in Cloudflare D1 SQLite. Full table definitions and relationships are available in [`schema.sql`](schema.sql):
+#### Database Schema (16 Tables in [`schema.sql`](schema.sql))
 
 | Table | Purpose & Stored Data |
 | :--- | :--- |
-| `employees` | Staff user accounts, roles (`Manager`, `Cashier`, `Barista`, `Kitchen Staff`, `Waiter`), and hashed passwords |
+| `employees` | Staff accounts, roles (`Manager`, `Cashier`, `Barista`, `Kitchen Staff`, `Waiter`), and bcrypt password hashes |
 | `attendance_records` | Daily clock-in/out logs, shift types, late arrival tracking, and duty status |
 | `menus` | Catalog item metadata, categories, prices, descriptions, and image assets |
 | `categories` | Product classification groups (`Coffee`, `Non-Coffee`, `Featured`, `Snack`, `Food`) |
 | `shop_config` | Store branding, operational settings, marquee notices, gallery, and tax rates |
-| `orders` | POS transaction tickets, ordered line items, totals, change amounts, and fulfillment states |
+| `orders` | POS transaction tickets, line items, totals, change amounts, and fulfillment states |
 | `posts` | Editorial blog promotions, marketing announcements, and published articles |
 | `shift_schedules` | Weekly shift allocations mapped to employee roles and days of the week |
 | `transactions` | Operational cash flow ledger, expenditures, and income records |
 | `ingredients` | Raw stock tracking, minimum inventory thresholds, units, and supplier data |
 | `recipes` | Ingredient-to-menu item recipes with required deduction amounts |
 | `assets` | Commercial coffee machinery registry, serial numbers, condition, and maintenance dates |
-| `feedbacks` | Customer guest ratings (1-5 stars), review feedback, and shift employee associations |
-| `notifications` | Internal table calls from customers (`/waiter`) and kitchen order alerts |
+| `feedbacks` | Customer guest ratings (1-5 stars), review messages, and shift employee associations |
+| `notifications` | Internal table calls from customers (`/waiter`) and low-stock alerts |
 | `notes` | Operational manager handoff notes and staff notice board |
-| `images` | Cloudflare R2 object storage upload metadata and CDN URL keys |
+| `images` | Uploaded image metadata and storage keys |
 
----
+### 4. Running Locally & Verification
 
-### Database Seeding & Demo Credentials
-
-Siap Nyafe provides automated database seeder endpoints in the Cloudflare Worker to populate employees across all 5 operational roles, default catalog items, Unsplash photography, raw ingredients, and coffee equipment assets.
-
-#### 1. Triggering Database Seeding
-
-Execute the seeder endpoints via `curl` or HTTP client:
+Start the frontend and local `/api/*` backend in a single command:
 
 ```bash
-# Seed 15 employee accounts and initial categories (requires the SEED_SECRET Worker secret)
-curl -X POST https://siapnyafe.widifirmaan.web.id/api/seed \
-  -H "Content-Type: application/json" \
-  -d '{"secret":"<SEED_SECRET>"}'
-
-# Seed full menu catalog, blog posts, ingredients, and assets (Manager token or SEED_SECRET)
-curl -X POST https://siapnyafe.widifirmaan.web.id/api/seed-content \
-  -H "Content-Type: application/json" \
-  -d '{"secret":"<SEED_SECRET>"}'
+npm run dev
 ```
 
-Set the secrets before deploying: `npx wrangler secret put SEED_SECRET` and `npx wrangler secret put JWT_SECRET`.
+Open [http://localhost:8085](http://localhost:8085) in your browser.
 
-#### 2. Pre-Configured Demo Accounts & Auth Credentials
+Verify the API and SQLite database connection end-to-end while `npm run dev` is running:
+
+```bash
+# 1. API health check
+curl http://localhost:8085/api/ping
+
+# 2. Public database reads
+curl http://localhost:8085/api/config
+curl http://localhost:8085/api/categories
+curl http://localhost:8085/api/menus
+
+# 3. Staff login against local.db (bcrypt + JWT)
+TOKEN=$(curl -s -X POST http://localhost:8085/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"employeeId":"EMP-MAN-001","password":"manager123"}' \
+  | node -e "const d = JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d.token || '')")
+
+# 4. Authenticated read from local.db
+curl http://localhost:8085/api/employees -H "Authorization: Bearer $TOKEN"
+
+# 5. Optional write-read-delete persistence check
+CAT_ID=$(curl -s -X POST http://localhost:8085/api/categories \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"__TEST_CAT__","description":"DB connection test"}' \
+  | node -e "const d = JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d.id || '')")
+curl http://localhost:8085/api/categories
+curl -X DELETE "http://localhost:8085/api/categories/$CAT_ID" -H "Authorization: Bearer $TOKEN"
+```
+
+#### Pre-Configured Demo Accounts
 
 | Role | Employee ID | Email | Password | Default Route | Accessible Modules |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Manager** | `EMP-MAN-001` | `manager@americano.com` | `manager123` | `/dashboard` | All Modules (Dashboard, Cashier, Menu, Kitchen, Inventory, Staff, Shifts, Assets, Finance, Posts, Settings) |
-| **Cashier** | `EMP-CSH-001` | `cashier1@americano.com` | `cashier123` | `/dashboard` | POS Cashier Checkout (`/cashier`), Customer Feedback (`/feedback`), Public Order (`/order`) |
-| **Barista** | `EMP-BAR-001` | `barista1@americano.com` | `barista123` | `/dashboard` | Kitchen Display Queue (`/kitchen`), Inventory Stock (`/inventory`), Menu (`/menu`) |
-| **Kitchen Staff** | `EMP-KIT-001` | `kitchen1@americano.com` | `kitchen123` | `/dashboard` | Kitchen Display Queue (`/kitchen`), Inventory Stock (`/inventory`) |
-| **Waiter** | `EMP-WAI-001` | `waiter1@americano.com` | `waiter123` | `/dashboard` | Waiter Table Calls (`/waiter`), Customer Feedback (`/feedback`) |
+| **Manager** | `EMP-MAN-001` | `manager@americano.com` | `manager123` | `/dashboard` | All Modules (`/dashboard`, `/cashier`, `/menu`, `/kitchen`, `/inventory`, `/waiter`, `/feedback`, `/employees`, `/shifts`, `/assets`, `/finance`, `/posts`, `/settings`) |
+| **Cashier** | `EMP-CSH-001` | `cashier1@americano.com` | `cashier123` | `/dashboard` | Dashboard (`/dashboard`), POS Cashier (`/cashier`), Menu (`/menu`), Feedback (`/feedback`) |
+| **Barista** | `EMP-BAR-001` | `barista1@americano.com` | `barista123` | `/dashboard` | Dashboard (`/dashboard`), Kitchen Queue (`/kitchen`), Inventory (`/inventory`), Menu (`/menu`) |
+| **Kitchen Staff** | `EMP-KIT-001` | `kitchen1@americano.com` | `kitchen123` | `/dashboard` | Dashboard (`/dashboard`), Kitchen Queue (`/kitchen`), Inventory (`/inventory`), Menu (`/menu`) |
+| **Waiter** | `EMP-WAI-001` | `waiter1@americano.com` | `waiter123` | `/dashboard` | Dashboard (`/dashboard`), Waiter Calls (`/waiter`), Feedback (`/feedback`), Menu (`/menu`) |
 
-> **Note:** These are demo credentials. Change the passwords on any real deployment.
->
-> **Customer Self-Order:** No login credentials are required to browse the digital menu or place orders at `/order` or view the promotional landing page at `/`.
+> **Customer Self-Order:** No login is required to view `/` or place orders at `/order`.
+
+### 5. Production Build
+
+```bash
+npm run build
+```
 
 ---
 
 ## Author
 
-Made with ❤️ by **Widi Firmansyah** / [widifirmaan.web.id](https://widifirmaan.web.id)
+**Widi Firmansyah** · [widifirmaan.web.id](https://widifirmaan.web.id)

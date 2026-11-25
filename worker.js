@@ -570,7 +570,7 @@ async function handleApi(request, env) {
   // EMPLOYEES
   // ===================================================================
   if (path === '/api/employees' && method === 'GET') {
-    if (!user) return error('Unauthorized', 401);
+    if (!user) return error('Unauthorized', 401, cors);
     let sql = 'SELECT * FROM employees WHERE 1=1';
     const params = [];
     if (searchParams.get('role')) {
@@ -588,11 +588,11 @@ async function handleApi(request, env) {
     }
     sql += ' ORDER BY name ASC';
     const { results } = await DB.prepare(sql).bind(...params).all();
-    return json(results.map(stripPassword));
+    return json(results.map(stripPassword), 200, cors);
   }
 
   if (path === '/api/employees' && method === 'POST') {
-    if (!user || !requireRole(user, ['Manager'])) return error('Forbidden', 403);
+    if (!user || !requireRole(user, ['Manager'])) return error('Forbidden', 403, cors);
     const id = uid();
     const hash = body.password ? await bcrypt.hash(body.password, SALT_ROUNDS) : null;
     const fields = {
@@ -606,40 +606,40 @@ async function handleApi(request, env) {
     const vals = cols.map(() => '?');
     const params = Object.values(fields);
     await DB.prepare(`INSERT INTO employees (${cols.join(',')}) VALUES (${vals.join(',')})`).bind(...params).run();
-    return json({ id, ...body, password: undefined }, 201);
+    return json({ id, ...body, password: undefined }, 201, cors);
   }
 
   const empMatch = path.match(/^\/api\/employees\/([^/]+)$/);
   if (empMatch) {
     const empId = empMatch[1];
     if (method === 'PUT') {
-      if (!user || !requireRole(user, ['Manager'])) return error('Forbidden', 403);
+      if (!user || !requireRole(user, ['Manager'])) return error('Forbidden', 403, cors);
       const fields = {};
       for (const k of ['employeeId', 'name', 'email', 'phone', 'position', 'salary', 'role', 'pin']) {
         if (body[k] !== undefined) fields[k] = body[k];
       }
       if (body.password) fields.password = await bcrypt.hash(body.password, SALT_ROUNDS);
-      if (Object.keys(fields).length === 0) return error('No fields to update', 400);
+      if (Object.keys(fields).length === 0) return error('No fields to update', 400, cors);
       const setClauses = Object.keys(fields).map(k => `${k} = ?`).join(', ');
       const params = [...Object.values(fields), empId];
       await DB.prepare(`UPDATE employees SET ${setClauses} WHERE id = ?`).bind(...params).run();
-      return json({ message: 'Updated' });
+      return json({ message: 'Updated' }, 200, cors);
     }
     if (method === 'DELETE') {
-      if (!user || !requireRole(user, ['Manager'])) return error('Forbidden', 403);
+      if (!user || !requireRole(user, ['Manager'])) return error('Forbidden', 403, cors);
       await DB.prepare('DELETE FROM employees WHERE id = ?').bind(empId).run();
-      return json({ message: 'Deleted' });
+      return json({ message: 'Deleted' }, 200, cors);
     }
   }
 
   const empStatusMatch = path.match(/^\/api\/employees\/([^/]+)\/status$/);
   if (empStatusMatch && method === 'PATCH') {
-    if (!user || !requireRole(user, ['Manager'])) return error('Forbidden', 403);
+    if (!user || !requireRole(user, ['Manager'])) return error('Forbidden', 403, cors);
     const emp = await DB.prepare('SELECT * FROM employees WHERE id = ?').bind(empStatusMatch[1]).first();
-    if (!emp) return error('Not found', 404);
+    if (!emp) return error('Not found', 404, cors);
     const newActive = emp.active ? 0 : 1;
     await DB.prepare('UPDATE employees SET active = ? WHERE id = ?').bind(newActive, empStatusMatch[1]).run();
-    return json({ message: 'Status toggled', active: !!newActive });
+    return json({ message: 'Status toggled', active: !!newActive }, 200, cors);
   }
 
   // ===================================================================
@@ -1852,12 +1852,12 @@ async function handleApi(request, env) {
       return error('File is too large. Maximum allowed size is 5MB.', 400, cors);
     }
 
-    // Delete old image from R2 and DB
+    // Delete old image from R2/local store and DB
     if (oldFileId) {
       const cleanId = oldFileId.replace(/^\/api\/images\//, '');
       try {
         const oldImg = await DB.prepare('SELECT * FROM images WHERE id = ?').bind(cleanId).first();
-        if (oldImg && oldImg.r2Key) {
+        if (oldImg && oldImg.r2Key && env.IMAGES && !oldImg.r2Key.startsWith('data:')) {
           await env.IMAGES.delete(oldImg.r2Key);
         }
         await DB.prepare('DELETE FROM images WHERE id = ?').bind(cleanId).run();
@@ -1865,10 +1865,19 @@ async function handleApi(request, env) {
     }
 
     const id = uid();
-    const r2Key = `${id}-${fileName || 'upload'}`;
-    await env.IMAGES.put(r2Key, fileArrayBuffer, {
-      httpMetadata: { contentType: fileMime || 'image/webp' },
-    });
+    let r2Key = `${id}-${fileName || 'upload'}`;
+    if (env.IMAGES) {
+      await env.IMAGES.put(r2Key, fileArrayBuffer, {
+        httpMetadata: { contentType: fileMime || 'image/webp' },
+      });
+    } else {
+      const bytes = new Uint8Array(fileArrayBuffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      r2Key = `data:${fileMime || 'image/webp'};base64,${btoa(binary)}`;
+    }
 
     await DB.prepare('INSERT INTO images (id, filename, mimetype, originalName, size, r2Key) VALUES (?, ?, ?, ?, ?, ?)')
       .bind(id, fileName || 'upload', fileMime || 'image/webp', fileName || 'upload', fileArrayBuffer.byteLength, r2Key).run();
@@ -1877,7 +1886,7 @@ async function handleApi(request, env) {
   }
 
   // ===================================================================
-  // SERVE IMAGE (from R2)
+  // SERVE IMAGE (from R2 / local store / inline fallback)
   // ===================================================================
   const imageMatch = path.match(/^\/api\/images\/([^/]+)$/);
   if (imageMatch && method === 'GET') {
@@ -1885,6 +1894,24 @@ async function handleApi(request, env) {
     const img = await DB.prepare('SELECT * FROM images WHERE id = ?').bind(imageId).first();
     if (!img || !img.r2Key) return placeholderImage();
 
+    if (img.r2Key.startsWith('data:')) {
+      const commaIdx = img.r2Key.indexOf(',');
+      const b64 = commaIdx >= 0 ? img.r2Key.slice(commaIdx + 1) : '';
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new Response(bytes, {
+        headers: {
+          'Content-Type': img.mimetype || 'image/webp',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+          ...cors,
+        },
+      });
+    }
+
+    if (!env.IMAGES) return placeholderImage();
     const obj = await env.IMAGES.get(img.r2Key);
     if (!obj) return placeholderImage();
 
@@ -1893,6 +1920,7 @@ async function handleApi(request, env) {
       headers: {
         'Content-Type': img.mimetype || 'image/webp',
         'Cache-Control': 'public, max-age=31536000, immutable',
+        ...cors,
       },
     });
   }
@@ -1902,10 +1930,10 @@ async function handleApi(request, env) {
   // ===================================================================
   if (path === '/api/seed' && method === 'POST') {
     const { secret } = body;
-    if (!env.SEED_SECRET || secret !== env.SEED_SECRET) return error('Invalid secret', 401);
+    if (!env.SEED_SECRET || secret !== env.SEED_SECRET) return error('Invalid secret', 401, cors);
 
     const existing = await DB.prepare('SELECT * FROM employees LIMIT 1').first();
-    if (existing) return error('Database already seeded', 400);
+    if (existing) return error('Database already seeded', 400, cors);
 
     async function seedEmp(employeeId, email, password, name, phone, position, salary, role) {
       const id = uid();
@@ -2142,11 +2170,13 @@ async function handleApi(request, env) {
   // PING
   // ===================================================================
   if (path === '/api/ping') {
-    return json({ message: 'Siap Nyafe API is running (Cloudflare Worker + D1)' });
+    return json({ message: 'Siap Nyafe API is running' }, 200, cors);
   }
 
   return json({ message: 'API Route Not Found' }, 404, cors);
 }
+
+export { handleApi };
 
 export default {
   async fetch(request, env, ctx) {

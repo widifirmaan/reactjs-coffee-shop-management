@@ -5,11 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:wrangler": "USE_WRANGLER=1 vite",
     "build": "vite build",
+    "db:setup": "node scripts/setup-local-db.mjs",
+    "db:reset": "node scripts/setup-local-db.mjs --reset",
     "deploy": "npx wrangler deploy",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "axios": "^1.6.0",
     "bcryptjs": "^2.4.3",
     "lucide-react": "^0.292.0",

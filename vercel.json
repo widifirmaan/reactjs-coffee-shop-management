@@ -1,0 +1,13 @@
+{
+  "functions": {
+    "api/[...route].js": {
+      "includeFiles": "{schema.sql,scripts/seed.sql}"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

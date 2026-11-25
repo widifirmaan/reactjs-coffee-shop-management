@@ -6,14 +6,6 @@ import ImageModal from '../components/ui/ImageModal';
 import MenuDetailModal from '../components/ui/MenuDetailModal';
 import CategorySelector from '../components/ui/CategorySelector';
 
-// Swiper Imports
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { EffectCoverflow, Navigation, Pagination, Mousewheel } from 'swiper/modules';
-import 'swiper/css';
-import 'swiper/css/effect-coverflow';
-import 'swiper/css/navigation';
-import 'swiper/css/pagination';
-
 // --- Background Components ---
 const generateLetters = (count, startOffset = 0) => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";

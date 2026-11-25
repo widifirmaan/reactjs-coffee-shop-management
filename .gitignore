@@ -2,10 +2,17 @@ node_modules/
 dist/
 .DS_Store
 .env
+.env.local
+.env.*.local
+.dev.vars
+.vercel
 *.log
 migration.sql
 migrate-now.js
 *.sqlite
+local.db
+local.db-*
+.local-uploads/
 
 raw_screenshots/
 

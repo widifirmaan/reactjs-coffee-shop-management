@@ -1,9 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ShoppingCart, Menu as MenuIcon, LayoutGrid, List as ListIcon, Trash2, Plus, Minus, CheckCircle } from 'lucide-react';
-import { Swiper, SwiperSlide } from 'swiper/react';
-import { Mousewheel } from 'swiper/modules';
-import 'swiper/css';
 
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';

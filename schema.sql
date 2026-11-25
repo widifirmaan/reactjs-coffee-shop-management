@@ -108,6 +108,7 @@ CREATE TABLE IF NOT EXISTS orders (
   notes TEXT,
   customerName TEXT,
   shiftStaff TEXT,
+  inventoryDeducted INTEGER DEFAULT 0,
   createdAt TEXT,
   updatedAt TEXT
 );
