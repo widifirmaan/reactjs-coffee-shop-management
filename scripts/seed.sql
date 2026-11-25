@@ -133,3 +133,26 @@ INSERT OR IGNORE INTO assets (id, assetCode, name, category, purchaseDate, purch
 INSERT OR IGNORE INTO assets (id, assetCode, name, category, purchaseDate, purchasePrice, condition, status, location, serialNumber, notes) VALUES ('ast-008', 'AST-ELC-003', 'Daikin Inverter Cassette AC 3 PK', 'Electronics', '2024-01-05', 18000000, 'GOOD', 'ACTIVE', 'Main Dining Hall', 'DK-CAS-3PK-12', 'Pembersihan AC tiap 3 bulan');
 INSERT OR IGNORE INTO assets (id, assetCode, name, category, purchaseDate, purchasePrice, condition, status, location, serialNumber, notes) VALUES ('ast-009', 'AST-FUR-001', 'Industrial Solid Teak Dining Table & 4 Chairs Set', 'Furniture', '2024-01-08', 6500000, 'GOOD', 'ACTIVE', 'Main Dining Hall', 'FUR-TBL-01', 'Meja nomor 1-5');
 INSERT OR IGNORE INTO assets (id, assetCode, name, category, purchaseDate, purchasePrice, condition, status, location, serialNumber, notes) VALUES ('ast-010', 'AST-FUR-002', 'Bar Stool Steel Frame Leather Cushion', 'Furniture', '2024-01-08', 4800000, 'GOOD', 'ACTIVE', 'Bar Counter', 'FUR-STL-01', '6 unit kursi bar');
+
+-- Default BOM Recipes linking core menus to ingredients
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-001', 'menu-001', 'Espresso', 'ing-001', 'Espresso Beans', 18, 'g');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-002', 'menu-001', 'Espresso', 'ing-009', 'Paper Cup 12oz', 1, 'pcs');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-003', 'menu-002', 'Double Espresso', 'ing-001', 'Espresso Beans', 36, 'g');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-004', 'menu-003', 'Americano', 'ing-001', 'Espresso Beans', 18, 'g');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-005', 'menu-003', 'Americano', 'ing-009', 'Paper Cup 12oz', 1, 'pcs');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-006', 'menu-005', 'Cappuccino', 'ing-001', 'Espresso Beans', 18, 'g');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-007', 'menu-005', 'Cappuccino', 'ing-002', 'Fresh Milk', 150, 'ml');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-008', 'menu-006', 'Cafe Latte', 'ing-001', 'Espresso Beans', 18, 'g');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-009', 'menu-006', 'Cafe Latte', 'ing-002', 'Fresh Milk', 180, 'ml');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-010', 'menu-006', 'Cafe Latte', 'ing-009', 'Paper Cup 12oz', 1, 'pcs');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-011', 'menu-009', 'Caramel Macchiato', 'ing-001', 'Espresso Beans', 18, 'g');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-012', 'menu-009', 'Caramel Macchiato', 'ing-002', 'Fresh Milk', 180, 'ml');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-013', 'menu-009', 'Caramel Macchiato', 'ing-007', 'Caramel Syrup', 20, 'ml');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-014', 'menu-010', 'Vanilla Latte', 'ing-001', 'Espresso Beans', 18, 'g');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-015', 'menu-010', 'Vanilla Latte', 'ing-008', 'Vanilla Syrup', 20, 'ml');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-016', 'menu-023', 'Kopi Susu Gula Aren', 'ing-001', 'Espresso Beans', 18, 'g');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-017', 'menu-023', 'Kopi Susu Gula Aren', 'ing-002', 'Fresh Milk', 150, 'ml');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-018', 'menu-023', 'Kopi Susu Gula Aren', 'ing-004', 'Gula Aren Cair', 30, 'ml');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-019', 'menu-026', 'Matcha Latte', 'ing-006', 'Matcha Powder', 15, 'g');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-020', 'menu-028', 'Chocolate', 'ing-005', 'Chocolate Powder', 25, 'g');
+INSERT OR IGNORE INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit) VALUES ('rec-021', 'menu-052', 'French Fries', 'ing-010', 'Frozen French Fries', 200, 'g');

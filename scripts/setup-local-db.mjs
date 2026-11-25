@@ -32,6 +32,7 @@ const counts = await client.execute(`
     (SELECT COUNT(*) FROM posts) AS posts,
     (SELECT COUNT(*) FROM ingredients) AS ingredients,
     (SELECT COUNT(*) FROM assets) AS assets,
+    (SELECT COUNT(*) FROM recipes) AS recipes,
     (SELECT COUNT(*) FROM shop_config) AS shop_config
 `);
 

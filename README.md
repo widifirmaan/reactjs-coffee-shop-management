@@ -162,160 +162,66 @@
 
 ## Local Setup
 
-### Project Structure
+### Prerequisites
 
-```bash
-/
-├── api/
-│   └── [...route].js               # Serverless catch-all API handler
-├── scripts/
-│   ├── setup-local-db.mjs          # Local SQLite database initializer and seeder
-│   ├── seed.sql                    # SQLite demo seed data (15 staff, 61 menus, 16 posts, etc.)
-│   └── generate-presentation.mjs   # Presentation generator from screenshots
-├── server/
-│   └── db-adapter.mjs              # SQLite/libSQL D1-compatible adapter & local upload store
-├── src/
-│   ├── components/
-│   │   ├── layout/                 # Navbar, OrderPageHeader, OrderPageFooter
-│   │   └── ui/                     # Reusable buttons, cards, modals, tables, badges
-│   ├── context/
-│   │   └── AuthContext.jsx         # Global user authentication & role state
-│   ├── pages/
-│   │   ├── OrderPage.jsx           # Customer self-ordering menu (/order)
-│   │   ├── DashboardPage.jsx       # Operations dashboard (/dashboard)
-│   │   ├── CashierPage.jsx         # POS register checkout (/cashier)
-│   │   ├── KitchenPage.jsx         # Kitchen Display System (/kitchen)
-│   │   ├── MenuPage.jsx            # Menu catalog (/menu)
-│   │   ├── InventoryPage.jsx       # Ingredient & recipe stock (/inventory)
-│   │   ├── EmployeePage.jsx        # Staff directory & attendance history (/employees)
-│   │   ├── ShiftPage.jsx           # Weekly shift matrix (/shifts)
-│   │   ├── WaiterPage.jsx          # Table waiter notifications (/waiter)
-│   │   ├── AssetManagementPage.jsx # Equipment register (/assets)
-│   │   ├── FinancePage.jsx         # Cash flow ledger (/finance)
-│   │   ├── FeedbackPage.jsx        # Customer reviews (/feedback)
-│   │   ├── CMSPage.jsx             # Public brand landing (/)
-│   │   ├── PostManagementPage.jsx  # Blog & promo posts (/posts)
-│   │   ├── SettingsPage.jsx        # Store configuration & tax (/settings)
-│   │   └── LoginPage.jsx           # Staff login portal (/login)
-│   ├── utils/
-│   │   └── staffUtils.js           # Shift staff parser helper
-│   ├── App.jsx                     # Route definitions and role guards
-│   └── main.jsx                    # Application entry point
-├── screenshots/                    # Desktop and mobile application screenshots
-├── public/                         # Static image assets
-├── index.html                      # Vite HTML entry
-├── schema.sql                      # Relational SQLite database schema (16 tables)
-├── vite.config.js                  # Vite config with in-process local /api middleware
-├── vercel.json                     # SPA rewrite & serverless SQL include config
-├── package.json                    # Dependencies and scripts
-└── README.md
-```
+- Node.js 18+ (20+ or 22+ recommended)
+- npm
 
-### 1. Prerequisites
+### Quick Start
 
-- **Node.js**: Version `18.0.0` or higher (`20+` or `22+` recommended)
-- **npm**: Included with Node.js
+1. **Clone the repository and install dependencies**
 
-### 2. Environment Variables
+   ```bash
+   git clone https://github.com/widifirmaan/reactjs-coffee-shop-management.git
+   cd reactjs-coffee-shop-management
+   npm install
+   ```
 
-No environment variables are required for local development. All API routes run locally against `local.db` (auto-initialized from [`schema.sql`](schema.sql) and [`scripts/seed.sql`](scripts/seed.sql)) and store uploaded images in `.local-uploads/`.
+2. **Configure environment variables (optional)**
 
-If needed, copy [`.env.example`](.env.example) to `.env`:
+   All API routes run locally out of the box against `local.db` (auto-initialized from [`schema.sql`](schema.sql) and [`scripts/seed.sql`](scripts/seed.sql)) and store uploaded images in `.local-uploads/`. To customize secrets or connect to a remote LibSQL/Turso database, copy [`.env.example`](.env.example) to `.env`:
 
-```env
-JWT_SECRET=local-dev-jwt-secret
-SEED_SECRET=local-dev-seed-secret
-# Optional remote libSQL/Turso database:
-# TURSO_DATABASE_URL=
-# TURSO_AUTH_TOKEN=
-# Optional external API base URL (overrides local /api middleware):
-# VITE_API_URL=
-```
+   ```bash
+   cp .env.example .env
+   ```
 
-### 3. Installation & Database Setup
+3. **Initialize and seed the local SQLite database**
 
-```bash
-# 1. Clone the repository
-git clone https://github.com/widifirmaan/reactjs-coffee-shop-management.git
-cd reactjs-coffee-shop-management
+   ```bash
+   npm run db:setup
+   ```
 
-# 2. Install dependencies
-npm install
+   Expected seeded counts from [`scripts/seed.sql`](scripts/seed.sql): `15` employees, `5` categories, `61` menus, `16` posts, `10` ingredients, `10` assets, `21` recipes, and `1` `shop_config` across the 16 relational tables defined in [`schema.sql`](schema.sql).
 
-# 3. Initialize and seed local.db (optional; also auto-runs on first /api request)
-npm run db:setup
-```
+   To wipe and recreate `local.db` cleanly:
 
-Expected seeded counts from [`scripts/seed.sql`](scripts/seed.sql): `15` employees, `5` categories, `61` menus, `16` posts, `10` ingredients, `10` assets, and `1` `shop_config`.
+   ```bash
+   npm run db:reset
+   ```
 
-To reset `local.db` back to the clean seeded state:
+4. **Start the development server**
 
-```bash
-npm run db:reset
-```
+   ```bash
+   npm run dev
+   ```
 
-#### Database Schema (16 Tables in [`schema.sql`](schema.sql))
+5. **Open the application and verify local API + DB persistence**
 
-| Table | Purpose & Stored Data |
-| :--- | :--- |
-| `employees` | Staff accounts, roles (`Manager`, `Cashier`, `Barista`, `Kitchen Staff`, `Waiter`), and bcrypt password hashes |
-| `attendance_records` | Daily clock-in/out logs, shift types, late arrival tracking, and duty status |
-| `menus` | Catalog item metadata, categories, prices, descriptions, and image assets |
-| `categories` | Product classification groups (`Coffee`, `Non-Coffee`, `Featured`, `Snack`, `Food`) |
-| `shop_config` | Store branding, operational settings, marquee notices, gallery, and tax rates |
-| `orders` | POS transaction tickets, line items, totals, change amounts, and fulfillment states |
-| `posts` | Editorial blog promotions, marketing announcements, and published articles |
-| `shift_schedules` | Weekly shift allocations mapped to employee roles and days of the week |
-| `transactions` | Operational cash flow ledger, expenditures, and income records |
-| `ingredients` | Raw stock tracking, minimum inventory thresholds, units, and supplier data |
-| `recipes` | Ingredient-to-menu item recipes with required deduction amounts |
-| `assets` | Commercial coffee machinery registry, serial numbers, condition, and maintenance dates |
-| `feedbacks` | Customer guest ratings (1-5 stars), review messages, and shift employee associations |
-| `notifications` | Internal table calls from customers (`/waiter`) and low-stock alerts |
-| `notes` | Operational manager handoff notes and staff notice board |
-| `images` | Uploaded image metadata and storage keys |
+   Visit [http://localhost:8085](http://localhost:8085) in your browser, or run:
 
-### 4. Running Locally & Verification
+   ```bash
+   curl http://localhost:8085/api/ping
+   curl http://localhost:8085/api/config
+   curl http://localhost:8085/api/menus
+   ```
 
-Start the frontend and local `/api/*` backend in a single command:
+6. **Build for production**
 
-```bash
-npm run dev
-```
+   ```bash
+   npm run build
+   ```
 
-Open [http://localhost:8085](http://localhost:8085) in your browser.
-
-Verify the API and SQLite database connection end-to-end while `npm run dev` is running:
-
-```bash
-# 1. API health check
-curl http://localhost:8085/api/ping
-
-# 2. Public database reads
-curl http://localhost:8085/api/config
-curl http://localhost:8085/api/categories
-curl http://localhost:8085/api/menus
-
-# 3. Staff login against local.db (bcrypt + JWT)
-TOKEN=$(curl -s -X POST http://localhost:8085/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"employeeId":"EMP-MAN-001","password":"manager123"}' \
-  | node -e "const d = JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d.token || '')")
-
-# 4. Authenticated read from local.db
-curl http://localhost:8085/api/employees -H "Authorization: Bearer $TOKEN"
-
-# 5. Optional write-read-delete persistence check
-CAT_ID=$(curl -s -X POST http://localhost:8085/api/categories \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"__TEST_CAT__","description":"DB connection test"}' \
-  | node -e "const d = JSON.parse(require('fs').readFileSync(0,'utf8')); console.log(d.id || '')")
-curl http://localhost:8085/api/categories
-curl -X DELETE "http://localhost:8085/api/categories/$CAT_ID" -H "Authorization: Bearer $TOKEN"
-```
-
-#### Pre-Configured Demo Accounts
+### Demo Credentials
 
 | Role | Employee ID | Email | Password | Default Route | Accessible Modules |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -325,13 +231,7 @@ curl -X DELETE "http://localhost:8085/api/categories/$CAT_ID" -H "Authorization:
 | **Kitchen Staff** | `EMP-KIT-001` | `kitchen1@americano.com` | `kitchen123` | `/dashboard` | Dashboard (`/dashboard`), Kitchen Queue (`/kitchen`), Inventory (`/inventory`), Menu (`/menu`) |
 | **Waiter** | `EMP-WAI-001` | `waiter1@americano.com` | `waiter123` | `/dashboard` | Dashboard (`/dashboard`), Waiter Calls (`/waiter`), Feedback (`/feedback`), Menu (`/menu`) |
 
-> **Customer Self-Order:** No login is required to view `/` or place orders at `/order`.
-
-### 5. Production Build
-
-```bash
-npm run build
-```
+> **Customer Self-Order:** No login is required to browse `/` or place orders at `/order`.
 
 ---
 

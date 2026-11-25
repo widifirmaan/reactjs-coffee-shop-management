@@ -358,7 +358,7 @@ async function initTables(DB) {
       )
     `).run();
     try { await DB.prepare('ALTER TABLE shop_config ADD COLUMN taxPercentage REAL DEFAULT 10').run(); } catch (_) {}
-    try { await DB.prepare('ALTER TABLE shop_config ADD COLUMN receiptFooter TEXT DEFAULT "Thank you for your visit!"').run(); } catch (_) {}
+    try { await DB.prepare("ALTER TABLE shop_config ADD COLUMN receiptFooter TEXT DEFAULT 'Thank you for your visit!'").run(); } catch (_) {}
     try { await DB.prepare('ALTER TABLE orders ADD COLUMN inventoryDeducted INTEGER DEFAULT 0').run(); } catch (_) {}
     tablesInitialized = true;
   } catch (e) {
@@ -366,40 +366,21 @@ async function initTables(DB) {
   }
 }
 
-async function deductIngredientsForOrder(DB, items) {
-  if (!Array.isArray(items) || !DB) return;
-  for (const item of items) {
-    const qty = parseFloat(item.quantity || 1);
-    if (isNaN(qty) || qty <= 0) continue;
-    let recipes = [];
-    if (item.menuId || item.id) {
-      const res = await DB.prepare('SELECT * FROM recipes WHERE menuId = ?').bind(item.menuId || item.id).all();
-      recipes = res.results || [];
-    }
-    if (recipes.length === 0 && (item.menuName || item.name)) {
-      const res = await DB.prepare('SELECT * FROM recipes WHERE menuName = ?').bind(item.menuName || item.name).all();
-      recipes = res.results || [];
-    }
-
-    for (const r of recipes) {
-      const deductAmount = parseFloat(r.amount || 0) * qty;
-      if (deductAmount > 0 && !isNaN(deductAmount)) {
-        await DB.prepare('UPDATE ingredients SET quantity = MAX(0, quantity - ?), stock = MAX(0, stock - ?), updatedAt = ? WHERE id = ?')
-          .bind(deductAmount, deductAmount, nowISO(), r.ingredientId).run();
-
-        const ing = await DB.prepare('SELECT * FROM ingredients WHERE id = ?').bind(r.ingredientId).first();
-        if (ing && ing.quantity <= (ing.minThreshold || ing.minStock || 0)) {
-          const notifId = uid();
-          await DB.prepare('INSERT INTO notifications (id, title, message, type, read, timestamp) VALUES (?, ?, ?, ?, 0, ?)')
-            .bind(notifId, 'LOW INVENTORY ALERT', `Stock for ${ing.name} is low (${ing.quantity} ${ing.unit || ''} remaining)!`, 'WARNING', nowISO()).run();
-        }
-      }
-    }
+async function runBatch(DB, stmts) {
+  if (!DB || !Array.isArray(stmts) || stmts.length === 0) return [];
+  if (typeof DB.batch === 'function') {
+    return await DB.batch(stmts);
   }
+  const results = [];
+  for (const stmt of stmts) {
+    results.push(await stmt.run());
+  }
+  return results;
 }
 
-async function restoreIngredientsForOrder(DB, items) {
-  if (!Array.isArray(items) || !DB) return;
+async function collectRecipeDeltas(DB, items) {
+  const deltas = new Map();
+  if (!Array.isArray(items) || !DB) return deltas;
   for (const item of items) {
     const qty = parseFloat(item.quantity || 1);
     if (isNaN(qty) || qty <= 0) continue;
@@ -412,29 +393,66 @@ async function restoreIngredientsForOrder(DB, items) {
       const res = await DB.prepare('SELECT * FROM recipes WHERE menuName = ?').bind(item.menuName || item.name).all();
       recipes = res?.results || [];
     }
-
     for (const r of recipes) {
-      const restoreAmount = parseFloat(r.amount || 0) * qty;
-      if (restoreAmount > 0 && !isNaN(restoreAmount)) {
-        await DB.prepare('UPDATE ingredients SET quantity = quantity + ?, stock = stock + ?, updatedAt = ? WHERE id = ?')
-          .bind(restoreAmount, restoreAmount, nowISO(), r.ingredientId).run();
+      const amount = parseFloat(r.amount || 0) * qty;
+      if (amount > 0 && !isNaN(amount) && r.ingredientId) {
+        deltas.set(r.ingredientId, (deltas.get(r.ingredientId) || 0) + amount);
       }
     }
   }
+  return deltas;
 }
 
-async function syncOrderToFinance(DB, order, user) {
-  if (!order || !order.orderNumber || !DB) return;
+async function collectDeductStmts(DB, items) {
+  const deltas = await collectRecipeDeltas(DB, items);
+  const stmts = [];
+  const ts = nowISO();
+  for (const [ingredientId, deductAmount] of deltas.entries()) {
+    const ing = await DB.prepare('SELECT * FROM ingredients WHERE id = ?').bind(ingredientId).first();
+    if (!ing) continue;
+    stmts.push(
+      DB.prepare('UPDATE ingredients SET quantity = MAX(0, quantity - ?), stock = MAX(0, stock - ?), updatedAt = ? WHERE id = ?')
+        .bind(deductAmount, deductAmount, ts, ingredientId)
+    );
+    const currentQty = parseFloat(ing.quantity ?? ing.stock ?? 0);
+    const remainingQty = Math.max(0, currentQty - deductAmount);
+    if (remainingQty <= (ing.minThreshold || ing.minStock || 0)) {
+      stmts.push(
+        DB.prepare('INSERT INTO notifications (id, title, message, type, read, timestamp) VALUES (?, ?, ?, ?, 0, ?)')
+          .bind(uid(), 'LOW INVENTORY ALERT', `Stock for ${ing.name} is low (${remainingQty} ${ing.unit || ''} remaining)!`, 'WARNING', ts)
+      );
+    }
+  }
+  return stmts;
+}
+
+async function collectRestoreStmts(DB, items) {
+  const deltas = await collectRecipeDeltas(DB, items);
+  const stmts = [];
+  const ts = nowISO();
+  for (const [ingredientId, restoreAmount] of deltas.entries()) {
+    stmts.push(
+      DB.prepare('UPDATE ingredients SET quantity = quantity + ?, stock = stock + ?, updatedAt = ? WHERE id = ?')
+        .bind(restoreAmount, restoreAmount, ts, ingredientId)
+    );
+  }
+  return stmts;
+}
+
+async function collectSyncOrderToFinanceStmts(DB, order, user) {
+  if (!order || !order.orderNumber || !DB) return [];
   const grandTotal = parseFloat(order.grandTotal || order.totalPrice || order.totalAmount || 0);
-  if (grandTotal <= 0) return;
+  if (grandTotal <= 0) return [];
 
   const existing = await DB.prepare('SELECT id FROM transactions WHERE description LIKE ?').bind(`%${order.orderNumber}%`).first();
-  if (existing) return;
+  if (existing) return [];
 
   const id = uid();
   const desc = `Order #${order.orderNumber} - ${order.customerName || 'Walk-in'} (${order.paymentMethod || 'CASH'})`;
-  await DB.prepare('INSERT INTO transactions (id, type, category, amount, description, date, employeeId) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .bind(id, 'INCOME', 'Sales', grandTotal, desc, nowISO(), user?.employeeId || order.employeeId || 'POS').run();
+  return [
+    DB.prepare('INSERT INTO transactions (id, type, category, amount, description, date, employeeId) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .bind(id, 'INCOME', 'Sales', grandTotal, desc, nowISO(), user?.employeeId || order.employeeId || 'POS')
+  ];
 }
 
 async function getClockedInStaffForCurrentShift(DB) {
@@ -849,16 +867,19 @@ async function handleApi(request, env) {
     sanitized.id = id;
     const cols = Object.keys(sanitized);
     const vals = cols.map(() => '?');
-    await DB.prepare(`INSERT INTO orders (${cols.join(',')}) VALUES (${vals.join(',')})`).bind(...Object.values(sanitized)).run();
+    const stmts = [
+      DB.prepare(`INSERT INTO orders (${cols.join(',')}) VALUES (${vals.join(',')})`).bind(...Object.values(sanitized))
+    ];
 
     // Auto-deduct inventory if created as PREPARING or COMPLETED (e.g. direct Cashier POS checkout)
     if (sanitized.inventoryDeducted === 1) {
-      await deductIngredientsForOrder(DB, rawItems);
+      stmts.push(...(await collectDeductStmts(DB, rawItems)));
     }
     // Auto-sync to Finance if COMPLETED
     if (sanitized.status === 'COMPLETED') {
-      await syncOrderToFinance(DB, sanitized, user);
+      stmts.push(...(await collectSyncOrderToFinanceStmts(DB, sanitized, user)));
     }
+    await runBatch(DB, stmts);
 
     return json(parseJsonFields({ ...sanitized }), 201, cors);
   }
@@ -898,29 +919,35 @@ async function handleApi(request, env) {
     if (!user) return error('Unauthorized', 401, cors);
     const orderId = orderStatusMatch[1];
     const status = (searchParams.get('status') || body.status || '').toUpperCase();
-    await DB.prepare('UPDATE orders SET status = ?, updatedAt = ? WHERE id = ?').bind(status, nowISO(), orderId).run();
+    if (!status) return error('Status is required', 400, cors);
 
     const order = await DB.prepare('SELECT * FROM orders WHERE id = ?').bind(orderId).first();
-    if (order) {
-      const parsed = parseJsonFields({ ...order });
-      // Only deduct if not already deducted previously
-      if ((status === 'PREPARING' || status === 'COMPLETED') && !order.inventoryDeducted) {
-        await deductIngredientsForOrder(DB, parsed.items);
-        await DB.prepare('UPDATE orders SET inventoryDeducted = 1 WHERE id = ?').bind(orderId).run();
-      }
-      if (status === 'COMPLETED') {
-        await syncOrderToFinance(DB, parsed, user);
-      }
-      if (status === 'CANCELLED') {
-        // Void financial transaction if any was synced
-        await DB.prepare('DELETE FROM transactions WHERE description LIKE ?').bind(`%${order.orderNumber}%`).run();
-        // Restore inventory if it was deducted
-        if (order.inventoryDeducted === 1 && parsed.items) {
-          await restoreIngredientsForOrder(DB, parsed.items);
-          await DB.prepare('UPDATE orders SET inventoryDeducted = 0 WHERE id = ?').bind(orderId).run();
-        }
+    if (!order) return error('Order not found', 404, cors);
+
+    const parsed = parseJsonFields({ ...order });
+    const stmts = [
+      DB.prepare('UPDATE orders SET status = ?, updatedAt = ? WHERE id = ?').bind(status, nowISO(), orderId)
+    ];
+
+    // Only deduct if not already deducted previously
+    if ((status === 'PREPARING' || status === 'COMPLETED') && !order.inventoryDeducted) {
+      stmts.push(...(await collectDeductStmts(DB, parsed.items)));
+      stmts.push(DB.prepare('UPDATE orders SET inventoryDeducted = 1 WHERE id = ?').bind(orderId));
+    }
+    if (status === 'COMPLETED') {
+      stmts.push(...(await collectSyncOrderToFinanceStmts(DB, parsed, user)));
+    }
+    if (status === 'CANCELLED') {
+      // Void financial transaction if any was synced
+      stmts.push(DB.prepare('DELETE FROM transactions WHERE description LIKE ?').bind(`%${order.orderNumber}%`));
+      // Restore inventory if it was deducted
+      if (order.inventoryDeducted === 1 && parsed.items) {
+        stmts.push(...(await collectRestoreStmts(DB, parsed.items)));
+        stmts.push(DB.prepare('UPDATE orders SET inventoryDeducted = 0 WHERE id = ?').bind(orderId));
       }
     }
+
+    await runBatch(DB, stmts);
     return json({ message: 'Status updated' }, 200, cors);
   }
 
@@ -994,13 +1021,15 @@ async function handleApi(request, env) {
     if (!user || !requireRole(user, ['Manager'])) return error('Forbidden', 403, cors);
     const shifts = body.shifts || body;
     if (Array.isArray(shifts)) {
-      await DB.prepare('DELETE FROM shift_schedules').run();
+      const stmts = [DB.prepare('DELETE FROM shift_schedules')];
       for (const s of shifts) {
         if (!s.employeeId || !s.dayOfWeek || !s.shiftType) continue;
-        const id = uid();
-        await DB.prepare('INSERT INTO shift_schedules (id, employeeId, employeeName, role, position, dayOfWeek, shiftType) VALUES (?, ?, ?, ?, ?, ?, ?)')
-          .bind(id, s.employeeId, s.employeeName || '', s.role || '', s.position || '', s.dayOfWeek, s.shiftType).run();
+        stmts.push(
+          DB.prepare('INSERT INTO shift_schedules (id, employeeId, employeeName, role, position, dayOfWeek, shiftType) VALUES (?, ?, ?, ?, ?, ?, ?)')
+            .bind(uid(), s.employeeId, s.employeeName || '', s.role || '', s.position || '', s.dayOfWeek, s.shiftType)
+        );
       }
+      await runBatch(DB, stmts);
     }
     return json({ message: 'Shifts saved' }, 200, cors);
   }
@@ -1144,10 +1173,20 @@ async function handleApi(request, env) {
     if (method === 'PUT') {
       if (!user || !requireRole(user, ['Manager', 'Barista', 'Kitchen Staff'])) return error('Forbidden', 403, cors);
       body.updatedAt = nowISO();
-      if (body.stock !== undefined) body.quantity = parseFloat(body.stock || 0);
-      if (body.quantity !== undefined) body.stock = parseFloat(body.quantity || 0);
-      if (body.minStock !== undefined) body.minThreshold = parseFloat(body.minStock || 0);
-      if (body.minThreshold !== undefined) body.minStock = parseFloat(body.minThreshold || 0);
+      if (body.quantity !== undefined) {
+        body.quantity = parseFloat(body.quantity || 0);
+        body.stock = body.stock !== undefined ? parseFloat(body.stock || 0) : body.quantity;
+      } else if (body.stock !== undefined) {
+        body.stock = parseFloat(body.stock || 0);
+        body.quantity = body.stock;
+      }
+      if (body.minThreshold !== undefined) {
+        body.minThreshold = parseFloat(body.minThreshold || 0);
+        body.minStock = body.minStock !== undefined ? parseFloat(body.minStock || 0) : body.minThreshold;
+      } else if (body.minStock !== undefined) {
+        body.minStock = parseFloat(body.minStock || 0);
+        body.minThreshold = body.minStock;
+      }
       const sanitized = pickFields(body, TABLE_COLUMNS.ingredients);
       if (Object.keys(sanitized).length === 0) return error('No valid fields to update', 400, cors);
       const setClauses = Object.keys(sanitized).map(k => `${k} = ?`).join(', ');
@@ -1935,29 +1974,33 @@ async function handleApi(request, env) {
     const existing = await DB.prepare('SELECT * FROM employees LIMIT 1').first();
     if (existing) return error('Database already seeded', 400, cors);
 
-    async function seedEmp(employeeId, email, password, name, phone, position, salary, role) {
-      const id = uid();
-      const hash = await bcrypt.hash(password, SALT_ROUNDS);
-      await DB.prepare(
-        'INSERT INTO employees (id, employeeId, email, password, name, phone, position, salary, role, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-      ).bind(id, employeeId, email, hash, name, phone, position, salary, role, 1).run();
-    }
+    const seedEmployees = [
+      ['EMP-MAN-001', 'manager@americano.com', 'manager123', 'Andi Manager', '08123456781', 'Manager', 5000000, 'Manager'],
+      ['EMP-MAN-002', 'manager2@americano.com', 'manager123', 'Siti Manager', '08123456782', 'Manager', 5000000, 'Manager'],
+      ['EMP-MAN-003', 'manager3@americano.com', 'manager123', 'Bambang Manager', '08123456780', 'Manager', 5000000, 'Manager'],
+      ['EMP-BAR-001', 'barista1@americano.com', 'barista123', 'Budi Barista', '08123456783', 'Barista', 3000000, 'Barista'],
+      ['EMP-BAR-002', 'barista2@americano.com', 'barista123', 'Rina Barista', '08123456784', 'Barista', 3000000, 'Barista'],
+      ['EMP-BAR-003', 'barista3@americano.com', 'barista123', 'Dedi Barista', '08123456785', 'Barista', 3000000, 'Barista'],
+      ['EMP-CSH-001', 'cashier1@americano.com', 'cashier123', 'Rini Cashier', '08123456786', 'Cashier', 3000000, 'Cashier'],
+      ['EMP-CSH-002', 'cashier2@americano.com', 'cashier123', 'Tono Cashier', '08123456787', 'Cashier', 3000000, 'Cashier'],
+      ['EMP-CSH-003', 'cashier3@americano.com', 'cashier123', 'Dewi Cashier', '08123456788', 'Cashier', 3000000, 'Cashier'],
+      ['EMP-KIT-001', 'kitchen1@americano.com', 'kitchen123', 'Joko Kitchen', '08123456789', 'Kitchen Staff', 3500000, 'Kitchen Staff'],
+      ['EMP-KIT-002', 'kitchen2@americano.com', 'kitchen123', 'Wati Kitchen', '08123456790', 'Kitchen Staff', 3500000, 'Kitchen Staff'],
+      ['EMP-KIT-003', 'kitchen3@americano.com', 'kitchen123', 'Agus Kitchen', '08123456791', 'Kitchen Staff', 3500000, 'Kitchen Staff'],
+      ['EMP-WAI-001', 'waiter1@americano.com', 'waiter123', 'Sari Waiter', '08123456792', 'Waiter', 2500000, 'Waiter'],
+      ['EMP-WAI-002', 'waiter2@americano.com', 'waiter123', 'Ahmad Waiter', '08123456793', 'Waiter', 2500000, 'Waiter'],
+      ['EMP-WAI-003', 'waiter3@americano.com', 'waiter123', 'Maya Waiter', '08123456794', 'Waiter', 2500000, 'Waiter'],
+    ];
 
-    await seedEmp('EMP-MAN-001', 'manager@americano.com', 'manager123', 'Andi Manager', '08123456781', 'Manager', 5000000, 'Manager');
-    await seedEmp('EMP-MAN-002', 'manager2@americano.com', 'manager123', 'Siti Manager', '08123456782', 'Manager', 5000000, 'Manager');
-    await seedEmp('EMP-MAN-003', 'manager3@americano.com', 'manager123', 'Bambang Manager', '08123456780', 'Manager', 5000000, 'Manager');
-    await seedEmp('EMP-BAR-001', 'barista1@americano.com', 'barista123', 'Budi Barista', '08123456783', 'Barista', 3000000, 'Barista');
-    await seedEmp('EMP-BAR-002', 'barista2@americano.com', 'barista123', 'Rina Barista', '08123456784', 'Barista', 3000000, 'Barista');
-    await seedEmp('EMP-BAR-003', 'barista3@americano.com', 'barista123', 'Dedi Barista', '08123456785', 'Barista', 3000000, 'Barista');
-    await seedEmp('EMP-CSH-001', 'cashier1@americano.com', 'cashier123', 'Rini Cashier', '08123456786', 'Cashier', 3000000, 'Cashier');
-    await seedEmp('EMP-CSH-002', 'cashier2@americano.com', 'cashier123', 'Tono Cashier', '08123456787', 'Cashier', 3000000, 'Cashier');
-    await seedEmp('EMP-CSH-003', 'cashier3@americano.com', 'cashier123', 'Dewi Cashier', '08123456788', 'Cashier', 3000000, 'Cashier');
-    await seedEmp('EMP-KIT-001', 'kitchen1@americano.com', 'kitchen123', 'Joko Kitchen', '08123456789', 'Kitchen Staff', 3500000, 'Kitchen Staff');
-    await seedEmp('EMP-KIT-002', 'kitchen2@americano.com', 'kitchen123', 'Wati Kitchen', '08123456790', 'Kitchen Staff', 3500000, 'Kitchen Staff');
-    await seedEmp('EMP-KIT-003', 'kitchen3@americano.com', 'kitchen123', 'Agus Kitchen', '08123456791', 'Kitchen Staff', 3500000, 'Kitchen Staff');
-    await seedEmp('EMP-WAI-001', 'waiter1@americano.com', 'waiter123', 'Sari Waiter', '08123456792', 'Waiter', 2500000, 'Waiter');
-    await seedEmp('EMP-WAI-002', 'waiter2@americano.com', 'waiter123', 'Ahmad Waiter', '08123456793', 'Waiter', 2500000, 'Waiter');
-    await seedEmp('EMP-WAI-003', 'waiter3@americano.com', 'waiter123', 'Maya Waiter', '08123456794', 'Waiter', 2500000, 'Waiter');
+    const stmts = [];
+    for (const [employeeId, email, password, name, phone, position, salary, role] of seedEmployees) {
+      const hash = await bcrypt.hash(password, SALT_ROUNDS);
+      stmts.push(
+        DB.prepare(
+          'INSERT INTO employees (id, employeeId, email, password, name, phone, position, salary, role, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(uid(), employeeId, email, hash, name, phone, position, salary, role, 1)
+      );
+    }
 
     const configId = uid();
     const defaultGallery = JSON.stringify([
@@ -1968,17 +2011,21 @@ async function handleApi(request, env) {
       'https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=600&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=600&auto=format&fit=crop&q=80'
     ]);
-    await DB.prepare(
-      'INSERT INTO shop_config (id, shopName, websiteTitle, faviconUrl, address, phoneNumber, marqueeText, heroImageUrl, badgeText1, badgeText2, galleryImages, infoTitle, infoContent, infoFooter1, infoFooter2, techSpec1, techSpec2, techSpec3) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-    ).bind(configId, 'Siap Nyafe', 'Siap Nyafe - Excellent Coffee', 'https://cdn-icons-png.flaticon.com/512/924/924514.png', 'Jakarta, Indonesia', '021-12345678', 'Welcome to Siap Nyafe Coffee Shop!',
-      'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=1200&auto=format&fit=crop&q=80', 'EST 2024', 'JAKARTA', defaultGallery, 'Our Story', 'Born in Jakarta, brewed for the bold.', 'EST. 2024', 'JAKARTA',
-      '// EST 2024', '// JKT_ID', '// V.1.0'
-    ).run();
+    stmts.push(
+      DB.prepare(
+        'INSERT INTO shop_config (id, shopName, websiteTitle, faviconUrl, address, phoneNumber, marqueeText, heroImageUrl, badgeText1, badgeText2, galleryImages, infoTitle, infoContent, infoFooter1, infoFooter2, techSpec1, techSpec2, techSpec3) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+      ).bind(configId, 'Siap Nyafe', 'Siap Nyafe - Excellent Coffee', 'https://cdn-icons-png.flaticon.com/512/924/924514.png', 'Jakarta, Indonesia', '021-12345678', 'Welcome to Siap Nyafe Coffee Shop!',
+        'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=1200&auto=format&fit=crop&q=80', 'EST 2024', 'JAKARTA', defaultGallery, 'Our Story', 'Born in Jakarta, brewed for the bold.', 'EST. 2024', 'JAKARTA',
+        '// EST 2024', '// JKT_ID', '// V.1.0'
+      )
+    );
 
     const categories = ['Coffee', 'Non-Coffee', 'Featured', 'Snack', 'Food'];
     for (const cat of categories) {
-      await DB.prepare('INSERT INTO categories (id, name) VALUES (?, ?)').bind(uid(), cat).run();
+      stmts.push(DB.prepare('INSERT INTO categories (id, name) VALUES (?, ?)').bind(uid(), cat));
     }
+
+    await runBatch(DB, stmts);
 
     return json({ message: 'Database seeded with 15 employees. Example logins: EMP-MAN-001 / manager123, EMP-BAR-001 / barista123, EMP-CSH-001 / cashier123, EMP-KIT-001 / kitchen123, EMP-WAI-001 / waiter123' }, 200, cors);
   }
@@ -2054,16 +2101,25 @@ async function handleApi(request, env) {
       { name: 'Pisang Goreng', category: 'Food', price: 20000, description: 'Pisang goreng crispy dengan topping coklat dan keju.', imageUrl: 'https://images.unsplash.com/photo-1528825871115-3581a5387919?w=600&auto=format&fit=crop&q=80' },
     ];
 
+    const seedStmts = [];
+    const menuIdByName = new Map();
     for (const m of menus) {
       const existingMenu = await DB.prepare('SELECT id FROM menus WHERE name = ?').bind(m.name).first();
       if (existingMenu) {
-        await DB.prepare(
-          'UPDATE menus SET category = ?, price = ?, description = ?, imageUrl = ?, updatedAt = ? WHERE id = ?'
-        ).bind(m.category, m.price, m.description, m.imageUrl, now, existingMenu.id).run();
+        menuIdByName.set(m.name, existingMenu.id);
+        seedStmts.push(
+          DB.prepare(
+            'UPDATE menus SET category = ?, price = ?, description = ?, imageUrl = ?, updatedAt = ? WHERE id = ?'
+          ).bind(m.category, m.price, m.description, m.imageUrl, now, existingMenu.id)
+        );
       } else {
-        await DB.prepare(
-          'INSERT INTO menus (id, name, category, price, description, imageUrl, available, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)'
-        ).bind(uid(), m.name, m.category, m.price, m.description, m.imageUrl, now, now).run();
+        const menuId = uid();
+        menuIdByName.set(m.name, menuId);
+        seedStmts.push(
+          DB.prepare(
+            'INSERT INTO menus (id, name, category, price, description, imageUrl, available, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)'
+          ).bind(menuId, m.name, m.category, m.price, m.description, m.imageUrl, now, now)
+        );
       }
     }
 
@@ -2089,14 +2145,18 @@ async function handleApi(request, env) {
     for (const p of posts) {
       const existingPost = await DB.prepare('SELECT id FROM posts WHERE title = ?').bind(p.title).first();
       if (existingPost) {
-        await DB.prepare(
-          'UPDATE posts SET category = ?, status = ?, excerpt = ?, content = ?, featuredImage = ?, updatedAt = ? WHERE id = ?'
-        ).bind(p.category, p.status, p.excerpt, p.content, p.featuredImage, now, existingPost.id).run();
+        seedStmts.push(
+          DB.prepare(
+            'UPDATE posts SET category = ?, status = ?, excerpt = ?, content = ?, featuredImage = ?, updatedAt = ? WHERE id = ?'
+          ).bind(p.category, p.status, p.excerpt, p.content, p.featuredImage, now, existingPost.id)
+        );
       } else {
         const slug = p.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
-        await DB.prepare(
-          'INSERT INTO posts (id, title, slug, content, excerpt, category, status, featuredImage, publishedAt, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        ).bind(uid(), p.title, slug, p.content, p.excerpt, p.category, p.status, p.featuredImage, p.status === 'PUBLISHED' ? now : null, p.createdAt, now).run();
+        seedStmts.push(
+          DB.prepare(
+            'INSERT INTO posts (id, title, slug, content, excerpt, category, status, featuredImage, publishedAt, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+          ).bind(uid(), p.title, slug, p.content, p.excerpt, p.category, p.status, p.featuredImage, p.status === 'PUBLISHED' ? now : null, p.createdAt, now)
+        );
       }
     }
 
@@ -2113,17 +2173,22 @@ async function handleApi(request, env) {
     const favIcon = 'https://cdn-icons-png.flaticon.com/512/924/924514.png';
     const existingConfig = await DB.prepare('SELECT id FROM shop_config LIMIT 1').first();
     if (existingConfig) {
-      await DB.prepare('UPDATE shop_config SET heroImageUrl = ?, faviconUrl = ?, galleryImages = ? WHERE id = ?')
-        .bind(heroImg, favIcon, JSON.stringify(galleryImagesArr), existingConfig.id).run();
+      seedStmts.push(
+        DB.prepare('UPDATE shop_config SET heroImageUrl = ?, faviconUrl = ?, galleryImages = ? WHERE id = ?')
+          .bind(heroImg, favIcon, JSON.stringify(galleryImagesArr), existingConfig.id)
+      );
     } else {
-      await DB.prepare(
-        'INSERT INTO shop_config (id, shopName, websiteTitle, faviconUrl, address, phoneNumber, marqueeText, heroImageUrl, badgeText1, badgeText2, galleryImages, infoTitle, infoContent, infoFooter1, infoFooter2, techSpec1, techSpec2, techSpec3) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-      ).bind(uid(), 'Siap Nyafe', 'Siap Nyafe - Excellent Coffee', favIcon, 'Jakarta, Indonesia', '021-12345678', 'Welcome to Siap Nyafe Coffee Shop!', heroImg, 'EST 2024', 'JAKARTA', JSON.stringify(galleryImagesArr), 'Our Story', 'Born in Jakarta, brewed for the bold.', 'EST. 2024', 'JAKARTA', '// EST 2024', '// JKT_ID', '// V.1.0').run();
+      seedStmts.push(
+        DB.prepare(
+          'INSERT INTO shop_config (id, shopName, websiteTitle, faviconUrl, address, phoneNumber, marqueeText, heroImageUrl, badgeText1, badgeText2, galleryImages, infoTitle, infoContent, infoFooter1, infoFooter2, techSpec1, techSpec2, techSpec3) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        ).bind(uid(), 'Siap Nyafe', 'Siap Nyafe - Excellent Coffee', favIcon, 'Jakarta, Indonesia', '021-12345678', 'Welcome to Siap Nyafe Coffee Shop!', heroImg, 'EST 2024', 'JAKARTA', JSON.stringify(galleryImagesArr), 'Our Story', 'Born in Jakarta, brewed for the bold.', 'EST. 2024', 'JAKARTA', '// EST 2024', '// JKT_ID', '// V.1.0')
+      );
     }
 
     // Seed initial ingredients if none exist
-    const existingIng = await DB.prepare('SELECT id FROM ingredients LIMIT 1').first();
-    if (!existingIng) {
+    const ingIdByName = new Map();
+    const { results: existingIngs } = await DB.prepare('SELECT id, name FROM ingredients').all();
+    if (!existingIngs || existingIngs.length === 0) {
       const defaultIngredients = [
         { name: 'Espresso Beans', category: 'Coffee', stock: 15000, quantity: 15000, unit: 'g', minStock: 2500, minThreshold: 2500, price: 250000, supplier: 'Koperasi Kopi Gayo' },
         { name: 'Fresh Milk', category: 'Dairy', stock: 25000, quantity: 25000, unit: 'ml', minStock: 5000, minThreshold: 5000, price: 22000, supplier: 'Greenfields' },
@@ -2137,8 +2202,54 @@ async function handleApi(request, env) {
         { name: 'Frozen French Fries', category: 'Food', stock: 12000, quantity: 12000, unit: 'g', minStock: 2500, minThreshold: 2500, price: 35000, supplier: 'Aviko' },
       ];
       for (const ing of defaultIngredients) {
-        await DB.prepare('INSERT INTO ingredients (id, name, category, stock, quantity, unit, minStock, minThreshold, price, supplier, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-          .bind(uid(), ing.name, ing.category, ing.stock, ing.quantity, ing.unit, ing.minStock, ing.minThreshold, ing.price, ing.supplier, now, now).run();
+        const ingId = uid();
+        ingIdByName.set(ing.name, ingId);
+        seedStmts.push(
+          DB.prepare('INSERT INTO ingredients (id, name, category, stock, quantity, unit, minStock, minThreshold, price, supplier, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+            .bind(ingId, ing.name, ing.category, ing.stock, ing.quantity, ing.unit, ing.minStock, ing.minThreshold, ing.price, ing.supplier, now, now)
+        );
+      }
+    } else {
+      for (const ing of existingIngs) {
+        ingIdByName.set(ing.name, ing.id);
+      }
+    }
+
+    // Seed default recipes if none exist
+    const existingRecipe = await DB.prepare('SELECT id FROM recipes LIMIT 1').first();
+    if (!existingRecipe) {
+      const defaultRecipes = [
+        ['Espresso', 'Espresso Beans', 18, 'g'],
+        ['Espresso', 'Paper Cup 12oz', 1, 'pcs'],
+        ['Double Espresso', 'Espresso Beans', 36, 'g'],
+        ['Americano', 'Espresso Beans', 18, 'g'],
+        ['Americano', 'Paper Cup 12oz', 1, 'pcs'],
+        ['Cappuccino', 'Espresso Beans', 18, 'g'],
+        ['Cappuccino', 'Fresh Milk', 150, 'ml'],
+        ['Cafe Latte', 'Espresso Beans', 18, 'g'],
+        ['Cafe Latte', 'Fresh Milk', 180, 'ml'],
+        ['Cafe Latte', 'Paper Cup 12oz', 1, 'pcs'],
+        ['Caramel Macchiato', 'Espresso Beans', 18, 'g'],
+        ['Caramel Macchiato', 'Fresh Milk', 180, 'ml'],
+        ['Caramel Macchiato', 'Caramel Syrup', 20, 'ml'],
+        ['Vanilla Latte', 'Espresso Beans', 18, 'g'],
+        ['Vanilla Latte', 'Vanilla Syrup', 20, 'ml'],
+        ['Kopi Susu Gula Aren', 'Espresso Beans', 18, 'g'],
+        ['Kopi Susu Gula Aren', 'Fresh Milk', 150, 'ml'],
+        ['Kopi Susu Gula Aren', 'Gula Aren Cair', 30, 'ml'],
+        ['Matcha Latte', 'Matcha Powder', 15, 'g'],
+        ['Chocolate', 'Chocolate Powder', 25, 'g'],
+        ['French Fries', 'Frozen French Fries', 200, 'g'],
+      ];
+      for (const [menuName, ingredientName, amount, unit] of defaultRecipes) {
+        const menuId = menuIdByName.get(menuName);
+        const ingredientId = ingIdByName.get(ingredientName);
+        if (menuId && ingredientId) {
+          seedStmts.push(
+            DB.prepare('INSERT INTO recipes (id, menuId, menuName, ingredientId, ingredientName, amount, unit, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+              .bind(uid(), menuId, menuName, ingredientId, ingredientName, amount, unit, now)
+          );
+        }
       }
     }
 
@@ -2158,10 +2269,14 @@ async function handleApi(request, env) {
         { assetCode: 'AST-FUR-002', name: 'Bar Stool Steel Frame Leather Cushion', category: 'Furniture', purchaseDate: '2024-01-08', purchasePrice: 4800000, condition: 'GOOD', status: 'ACTIVE', location: 'Bar Counter', serialNumber: 'FUR-STL-01', notes: '6 unit kursi bar' },
       ];
       for (const a of defaultAssets) {
-        await DB.prepare('INSERT INTO assets (id, assetCode, name, category, purchaseDate, purchasePrice, condition, status, location, serialNumber, notes, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-          .bind(uid(), a.assetCode, a.name, a.category, a.purchaseDate, a.purchasePrice, a.condition, a.status, a.location, a.serialNumber, a.notes, now, now).run();
+        seedStmts.push(
+          DB.prepare('INSERT INTO assets (id, assetCode, name, category, purchaseDate, purchasePrice, condition, status, location, serialNumber, notes, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+            .bind(uid(), a.assetCode, a.name, a.category, a.purchaseDate, a.purchasePrice, a.condition, a.status, a.location, a.serialNumber, a.notes, now, now)
+        );
       }
     }
+
+    await runBatch(DB, seedStmts);
 
     return json({ message: `Successfully seeded and updated images for ${menus.length} menu items, ${posts.length} blog posts, and website configuration` }, 200, cors);
   }
