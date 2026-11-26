@@ -457,6 +457,9 @@ export default function CMSPage() {
                     }}>
                         {/* PARALLAX BACKGROUND LEFT */}
                         <ParallaxBackground count={15} mousePos={mousePos} color="#cbd5e1" />
+                        <h1 style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0, 0, 0, 0)', whiteSpace: 'nowrap' }}>
+                            {shopConfig?.shopName || 'Siap Nyafe'} - Specialty Coffee Shop &amp; Self-Ordering
+                        </h1>
 
                         {/* Abstract Artistic Blur */}
                         <div style={{
@@ -1048,7 +1051,7 @@ export default function CMSPage() {
                         {/* Image Header */}
                         {selectedPost.featuredImage && (
                             <div style={{ width: '100%', height: '350px', borderBottom: '5px solid black' }}>
-                                <img src={selectedPost.featuredImage} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
+                                <img src={selectedPost.featuredImage} alt={selectedPost.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} onError={(e) => { e.target.style.display = 'none'; }} />
                             </div>
                         )}
 
@@ -1067,9 +1070,9 @@ export default function CMSPage() {
                                 </span>
                             </div>
 
-                            <h1 style={{ fontSize: isMobile ? '2.5rem' : '4rem', fontWeight: '900', lineHeight: 0.9, marginBottom: '40px', textTransform: 'uppercase', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                            <h2 style={{ fontSize: isMobile ? '2.5rem' : '4rem', fontWeight: '900', lineHeight: 0.9, marginBottom: '40px', textTransform: 'uppercase', wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                                 {selectedPost.title}
-                            </h1>
+                            </h2>
 
                             <div style={{
                                 fontSize: '1.2rem',

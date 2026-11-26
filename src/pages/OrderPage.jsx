@@ -124,10 +124,10 @@ export default function OrderPage({ shopConfig }) {
 
         return (
             <div style={{ display: 'grid', gap: '10px' }}>
-                <img onClick={() => setZoomedImage(uniqueImages[0])} src={uniqueImages[0]} style={{ width: '100%', height: '300px', objectFit: 'cover', border: '4px solid black', cursor: 'zoom-in' }} onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x400/e0e0e0/000000?text=No+Image" }} />
+                <img alt={menu.name} onClick={() => setZoomedImage(uniqueImages[0])} src={uniqueImages[0]} style={{ width: '100%', height: '300px', objectFit: 'cover', border: '4px solid black', cursor: 'zoom-in' }} onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x400/e0e0e0/000000?text=No+Image" }} />
                 <div style={{ display: 'flex', gap: '10px' }}>
                     {uniqueImages.slice(1, 4).map((img, i) => (
-                        <img key={i} onClick={() => setZoomedImage(img)} src={img} style={{ width: '80px', height: '80px', objectFit: 'cover', border: '2px solid black', cursor: 'zoom-in' }} onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x400/e0e0e0/000000?text=No+Image" }} />
+                        <img key={i} alt={`${menu.name} photo ${i + 2}`} onClick={() => setZoomedImage(img)} src={img} style={{ width: '80px', height: '80px', objectFit: 'cover', border: '2px solid black', cursor: 'zoom-in' }} onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x400/e0e0e0/000000?text=No+Image" }} />
                     ))}
                 </div>
             </div>
@@ -200,7 +200,7 @@ export default function OrderPage({ shopConfig }) {
                                 {items.map(menu => (
                                     <Card key={menu.id} onClick={() => setSelectedMenu(menu)} style={{ cursor: 'pointer', padding: 0, overflow: 'hidden' }}>
                                         <div style={{ height: '200px', overflow: 'hidden', borderBottom: '4px solid black' }}>
-                                            <img src={menu.imageUrl || "https://placehold.co/600x400?text=No+Image"} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} className="hover-zoom" onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x400/e0e0e0/000000?text=No+Image" }} />
+                                            <img src={menu.imageUrl || "https://placehold.co/600x400?text=No+Image"} alt={menu.name} style={{ width: '100%', height: '100%', objectFit: 'cover', transition: 'transform 0.3s' }} className="hover-zoom" onError={(e) => { e.target.onerror = null; e.target.src = "https://placehold.co/600x400/e0e0e0/000000?text=No+Image" }} />
                                         </div>
                                         <div style={{ padding: '20px' }}>
                                             <h3 className="menu-item-title" style={{
