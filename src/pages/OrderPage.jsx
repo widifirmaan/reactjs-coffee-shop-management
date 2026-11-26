@@ -157,7 +157,7 @@ export default function OrderPage({ shopConfig }) {
             {/* Header */}
             <OrderPageHeader shopConfig={shopConfig} onCallWaiter={() => setIsCallWaiterOpen(true)} />
 
-            <div style={{
+            <main style={{
                 minHeight: '100vh',
                 width: '100%',
                 backgroundImage: 'url(/bg-menu-color.png)',
@@ -225,7 +225,7 @@ export default function OrderPage({ shopConfig }) {
                     ))}
 
                 </div>
-            </div>
+            </main>
 
             {/* Footer Info */}
             <OrderPageFooter shopConfig={shopConfig} />
@@ -266,10 +266,10 @@ export default function OrderPage({ shopConfig }) {
                                 <p>Rp {item.price.toLocaleString()}</p>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <Button variant="secondary" onClick={() => updateQuantity(item.id, -1)} style={{ padding: '5px' }}><Minus size={16} /></Button>
+                                <Button variant="secondary" aria-label={`Kurangi jumlah ${item.name}`} onClick={() => updateQuantity(item.id, -1)} style={{ padding: '5px' }}><Minus size={16} /></Button>
                                 <span style={{ fontWeight: '900', fontSize: '1.2rem' }}>{item.quantity}</span>
-                                <Button variant="secondary" onClick={() => updateQuantity(item.id, 1)} style={{ padding: '5px' }}><Plus size={16} /></Button>
-                                <Button variant="danger" onClick={() => updateQuantity(item.id, -item.quantity)} style={{ padding: '5px', marginLeft: '10px' }}><Trash2 size={16} /></Button>
+                                <Button variant="secondary" aria-label={`Tambah jumlah ${item.name}`} onClick={() => updateQuantity(item.id, 1)} style={{ padding: '5px' }}><Plus size={16} /></Button>
+                                <Button variant="danger" aria-label={`Hapus ${item.name} dari keranjang`} onClick={() => updateQuantity(item.id, -item.quantity)} style={{ padding: '5px', marginLeft: '10px' }}><Trash2 size={16} /></Button>
                             </div>
 
                         </div>

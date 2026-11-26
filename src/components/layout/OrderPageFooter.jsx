@@ -112,6 +112,7 @@ export default function OrderPageFooter({ shopConfig }) {
                                 <button
                                     key={star}
                                     type="button"
+                                    aria-label={`Beri rating ${star} bintang`}
                                     onClick={() => setRating(star)}
                                     onMouseEnter={() => setHoverRating(star)}
                                     onMouseLeave={() => setHoverRating(0)}

@@ -25,6 +25,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange, item
             <div className="pagination-controls" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
                 <Button
                     variant="secondary"
+                    aria-label="Halaman sebelumnya"
                     onClick={() => onPageChange(currentPage - 1)}
                     disabled={currentPage === 1}
                     style={{ padding: '8px 12px' }}
@@ -56,6 +57,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange, item
 
                 <Button
                     variant="secondary"
+                    aria-label="Halaman berikutnya"
                     onClick={() => onPageChange(currentPage + 1)}
                     disabled={currentPage === totalPages}
                     style={{ padding: '8px 12px' }}

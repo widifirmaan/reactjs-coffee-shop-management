@@ -62,6 +62,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = '800px' }) 
                         {title}
                     </h2>
                     <button
+                        aria-label="Tutup modal"
                         onClick={onClose}
                         style={{
                             background: 'black', color: 'white', border: 'none',

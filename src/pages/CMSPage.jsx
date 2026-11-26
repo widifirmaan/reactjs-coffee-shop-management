@@ -521,7 +521,7 @@ export default function CMSPage() {
 
                                 <div style={{ marginTop: isMobile ? '5px' : '10px', borderLeft: '4px solid #FCD34D', paddingLeft: isMobile ? '12px' : '20px', width: '100%' }}>
                                     <p style={{ fontSize: isMobile ? '0.9rem' : '1.2rem', fontWeight: 'bold', margin: 0, fontFamily: 'monospace' }}>
-                                        BEANS STATUS: <span style={{ color: '#059669' }}>ONLINE</span>
+                                        BEANS STATUS: <span style={{ color: '#047857' }}>ONLINE</span>
                                     </p>
                                     <p style={{ fontSize: isMobile ? '0.9rem' : '1.2rem', fontWeight: 'bold', margin: 0 }}>
                                         SERVING PREMIUM CAFFEINE
@@ -728,7 +728,7 @@ export default function CMSPage() {
                     transform: isMobile ? 'translateX(-50%)' : 'none',
                     zIndex: 50
                 }}>
-                    <button onClick={() => setIsMenuOpen(false)} style={{
+                    <button aria-label="Tutup daftar menu" onClick={() => setIsMenuOpen(false)} style={{
                         background: isMobile ? 'black' : 'transparent',
                         border: isMobile ? '2px solid white' : 'none',
                         color: 'white',
@@ -910,6 +910,7 @@ export default function CMSPage() {
                 }}>
                     {/* BACK BUTTON (Top Left - Icon Only - Transparent - No Shadow) */}
                     <button
+                        aria-label="Tutup info promo terbaru"
                         onClick={() => setIsPromoOpen(false)}
                         style={{
                             position: 'absolute',

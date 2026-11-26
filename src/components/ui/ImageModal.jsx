@@ -104,6 +104,7 @@ export default function ImageModal({ imageUrl, onClose, alt = 'Expanded view' })
                          }}
                      />
                     <button
+                        aria-label="Tutup pratinjau gambar"
                         onClick={handleClose}
                         style={{
                             position: 'absolute',

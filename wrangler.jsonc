@@ -26,7 +26,26 @@
 	"assets": {
 		"directory": "dist",
 		"binding": "ASSETS",
-		"not_found_handling": "single-page-application"
+		"not_found_handling": "single-page-application",
+		"run_worker_first": [
+			"/api/*",
+			"/order",
+			"/order/",
+			"/login",
+			"/dashboard*",
+			"/cashier*",
+			"/kitchen*",
+			"/inventory*",
+			"/waiter*",
+			"/feedback*",
+			"/menu*",
+			"/assets",
+			"/employees*",
+			"/shifts*",
+			"/finance*",
+			"/posts*",
+			"/settings*"
+		]
 	},
 	"d1_databases": [
 		{
