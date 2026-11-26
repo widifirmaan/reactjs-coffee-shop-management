@@ -2308,7 +2308,23 @@ export default {
     }
 
     if (env.ASSETS && typeof env.ASSETS.fetch === 'function') {
-      return env.ASSETS.fetch(request);
+      const assetRes = await env.ASSETS.fetch(request);
+      const ct = assetRes.headers.get('content-type') || '';
+      if (!ct.includes('text/html') || url.pathname === '/') {
+        return assetRes;
+      }
+      let html = await assetRes.text();
+      if (url.pathname === '/order' || url.pathname === '/order/') {
+        html = html
+          .replace(/<title>[\s\S]*?<\/title>/, '<title>Self-Order Menu - Siap Nyafe POS</title>')
+          .replace('<link rel="canonical" href="https://siapnyafe.widifirmaan.web.id/" />', '<link rel="canonical" href="https://siapnyafe.widifirmaan.web.id/order" />')
+          .replace('<meta property="og:url" content="https://siapnyafe.widifirmaan.web.id/" />', '<meta property="og:url" content="https://siapnyafe.widifirmaan.web.id/order" />');
+      } else {
+        html = html.replace('</head>', '  <meta name="robots" content="noindex, nofollow" />\n</head>');
+      }
+      const headers = new Headers(assetRes.headers);
+      headers.delete('content-length');
+      return new Response(html, { status: assetRes.status, headers });
     }
 
     return new Response('Assets binding not available', { status: 503 });
